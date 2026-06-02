@@ -31,6 +31,11 @@ configurable set of Org files.  The board is inspired by the visual polish of
 - *Priority coloring.*  The =[#X]= priority cookie on each card is colored
   using your configured ~org-priority-faces~ — the same source =org-agenda=
   uses (see ~org-kanban-modern-priority-style~).
+- *Planning timestamps.*  A card shows its =SCHEDULED= and =DEADLINE=
+  timestamps when set, each on its own line beneath the title, with any
+  repeater (e.g. =+1w=) preserved.  Toggle with
+  ~org-kanban-modern-show-planning~ and set the glyphs with
+  ~org-kanban-modern-scheduled-glyph~ / ~org-kanban-modern-deadline-glyph~.
 - *Sorting.*  Within each column, cards are sorted by Org priority (highest
   first) by default.  Like ~org-agenda~, an unprioritized card is treated as
   ~org-default-priority~ (normally =[#B]=), so it interleaves with explicit
@@ -89,6 +94,11 @@ get started.  A couple of standard Org settings make it nicer:
   source =org-agenda= uses — so anything you already customize there is
   reflected on the board.  ~org-default-priority~ (normally =[#B]=) controls
   where unprioritized cards land in the default priority sort.
+
+  Planning timestamps reuse Org's planning faces too: the
+  ~org-kanban-modern-scheduled~ face inherits ~org-scheduled~ and
+  ~org-kanban-modern-deadline~ inherits ~org-upcoming-deadline~, so they track
+  your theme like the rest of the board.
 
 * Usage
 
@@ -155,6 +165,14 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
   the ~org-priority~ face as fallback), the same source =org-agenda= uses, so
   priorities look consistent across Org.  Choices: ~cookie~ (color the =[#X]=
   cookie — the default) or ~nil~ (no priority coloring).
+- ~org-kanban-modern-show-planning~ — show each card's =SCHEDULED= and
+  =DEADLINE= timestamps when set (default ~t~).  Each is rendered on its own
+  line beneath the title with any repeater preserved.  Set to ~nil~ to hide
+  them.
+- ~org-kanban-modern-scheduled-glyph~ / ~org-kanban-modern-deadline-glyph~ —
+  prefixes shown before the scheduled (default ="⏰ "=) and deadline
+  (default ="⚑ "=) timestamps.  Use a short text label (e.g. ="S: "=) if the
+  glyph does not render in your font.
 - ~org-kanban-modern-line-spacing~ — buffer-local ~line-spacing~ for the board
   (default ~0~).  Cards are solid colored tiles; if your frame or theme adds
   inter-line spacing, the card background does not fill it and faint stripes

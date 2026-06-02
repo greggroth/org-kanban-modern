@@ -126,6 +126,29 @@ description.  When nil, titles are displayed as raw Org text."
   :type 'boolean
   :group 'org-kanban-modern)
 
+(defcustom org-kanban-modern-show-planning t
+  "When non-nil, show a card's SCHEDULED and DEADLINE timestamps.
+Each planning timestamp that is set on the heading is rendered on its
+own line beneath the title, preserving any repeater (e.g. =+1w=).  The
+glyphs are set by `org-kanban-modern-scheduled-glyph' and
+`org-kanban-modern-deadline-glyph'."
+  :type 'boolean
+  :group 'org-kanban-modern)
+
+(defcustom org-kanban-modern-scheduled-glyph "⏰ "
+  "Prefix shown before a card's SCHEDULED timestamp.
+Use a short text label (e.g. \"S: \") if the glyph does not render in
+your font."
+  :type 'string
+  :group 'org-kanban-modern)
+
+(defcustom org-kanban-modern-deadline-glyph "⚑ "
+  "Prefix shown before a card's DEADLINE timestamp.
+Use a short text label (e.g. \"D: \") if the glyph does not render in
+your font."
+  :type 'string
+  :group 'org-kanban-modern)
+
 (defcustom org-kanban-modern-priority-style 'cookie
   "How a card reflects its Org priority.
 Priority colors come from Org's own `org-priority-faces' (with the
@@ -214,6 +237,16 @@ Sets no background so the card background shows through."
   "Face for a card priority cookie."
   :group 'org-kanban-modern)
 
+(defface org-kanban-modern-scheduled
+  '((t :inherit (fixed-pitch org-scheduled)))
+  "Face for a card's SCHEDULED timestamp line."
+  :group 'org-kanban-modern)
+
+(defface org-kanban-modern-deadline
+  '((t :inherit (fixed-pitch org-upcoming-deadline)))
+  "Face for a card's DEADLINE timestamp line."
+  :group 'org-kanban-modern)
+
 (defface org-kanban-modern-tag
   '((t :inherit (fixed-pitch org-tag)))
   "Face for a tag chip on a card."
@@ -253,8 +286,10 @@ TODO state change, so selection can be preserved across a move.
 MARKER points at the source heading in its (live) file buffer and is
 used as the fast path for locating the heading to move; it is
 verified against TITLE before any destructive edit.
-CLOSED is the entry's CLOSED time (a Lisp time value) or nil."
-  id file marker title todo tags priority closed)
+CLOSED is the entry's CLOSED time (a Lisp time value) or nil.
+SCHEDULED and DEADLINE are the entry's raw planning timestamp strings
+\(e.g. \"<2026-06-02 Tue +1w>\"), preserving any repeater, or nil."
+  id file marker title todo tags priority closed scheduled deadline)
 
 (defun org-kanban-modern--strip-keyword (kw)
   "Return the bare keyword name of KW from `org-todo-keywords'.
@@ -300,6 +335,8 @@ SEEN is a hash table used to disambiguate duplicate outline paths."
          (priority (org-element-property :priority el))
          (tags (org-kanban-modern--effective-tags))
          (closed (org-kanban-modern--closed-time))
+         (scheduled (org-kanban-modern--planning-raw el :scheduled))
+         (deadline (org-kanban-modern--planning-raw el :deadline))
          (path (org-get-outline-path t))
          (base (concat (buffer-file-name) "\0"
                        (mapconcat #'identity path "/")))
@@ -313,7 +350,17 @@ SEEN is a hash table used to disambiguate duplicate outline paths."
      :todo todo
      :tags tags
      :priority priority
-     :closed closed)))
+     :closed closed
+     :scheduled scheduled
+     :deadline deadline)))
+
+(defun org-kanban-modern--planning-raw (el prop)
+  "Return the raw planning timestamp string of headline EL for PROP.
+PROP is `:scheduled' or `:deadline'.  Returns the timestamp's raw
+value (preserving any repeater), or nil when unset or malformed."
+  (let ((ts (org-element-property prop el)))
+    (and (eq (org-element-type ts) 'timestamp)
+         (org-element-property :raw-value ts))))
 
 (defvar-local org-kanban-modern--done-window nil
   "Days back within which done cards are shown, or nil to show all.
@@ -537,6 +584,41 @@ base styling).  When PRIORITY has no configured entry, fall back to
      ;; our face underneath for fixed-pitch.
      (t (list spec 'org-kanban-modern-priority)))))
 
+(defun org-kanban-modern--format-timestamp (raw)
+  "Return RAW Org timestamp string with its delimiter brackets removed.
+Removes the active =<>= and inactive =[]= delimiters (including the inner
+pair of a =<a>--<b>= range) while keeping the dates, times, and any
+repeater or warning period intact."
+  (string-trim (replace-regexp-in-string "[][<>]" "" raw)))
+
+(defun org-kanban-modern--planning-line (glyph raw face content-width)
+  "Return a propertized planning line for RAW timestamp.
+GLYPH prefixes the formatted timestamp, FACE styles the whole line, and
+the result is truncated to CONTENT-WIDTH display columns."
+  (let ((s (propertize (concat glyph (org-kanban-modern--format-timestamp raw))
+                       'face face)))
+    (if (> (string-width s) content-width)
+        (truncate-string-to-width s content-width nil nil t)
+      s)))
+
+(defun org-kanban-modern--planning-lines (card content-width)
+  "Return CARD's planning lines (0-2) truncated to CONTENT-WIDTH.
+Returns the deadline line first (when set) then the scheduled line (when
+set), or nil when planning display is disabled or neither is set."
+  (when org-kanban-modern-show-planning
+    (let ((lines '()))
+      (when-let ((d (org-kanban-modern-card-deadline card)))
+        (push (org-kanban-modern--planning-line
+               org-kanban-modern-deadline-glyph d
+               'org-kanban-modern-deadline content-width)
+              lines))
+      (when-let ((s (org-kanban-modern-card-scheduled card)))
+        (push (org-kanban-modern--planning-line
+               org-kanban-modern-scheduled-glyph s
+               'org-kanban-modern-scheduled content-width)
+              lines))
+      (nreverse lines))))
+
 (defun org-kanban-modern--tags-string (card content-width)
   "Return a propertized, clickable tag string for CARD.
 The result is truncated to CONTENT-WIDTH display columns."
@@ -628,6 +710,9 @@ the clickable, filter-toggling elements."
                                        content-width)))))
     (dolist (tl title-lines)
       (push (org-kanban-modern--finish-line tl width base bar-face bar-char id)
+            lines))
+    (dolist (pl (org-kanban-modern--planning-lines card content-width))
+      (push (org-kanban-modern--finish-line pl width base bar-face bar-char id)
             lines))
     (when (org-kanban-modern-card-tags card)
       (push (org-kanban-modern--finish-line

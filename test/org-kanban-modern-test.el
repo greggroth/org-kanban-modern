@@ -216,6 +216,108 @@ order."
                    '(choice (const :tag "Color the priority cookie" cookie)
                             (const :tag "No priority color" nil))))))
 
+;;;; Planning timestamps
+
+(ert-deftest org-kanban-modern-test-format-timestamp ()
+  "Bracket stripping keeps the inner date, time, and any repeater."
+  (should (equal (org-kanban-modern--format-timestamp "<2026-06-02 Tue>")
+                 "2026-06-02 Tue"))
+  ;; Active timestamp with a repeater.
+  (should (equal (org-kanban-modern--format-timestamp "<2026-06-02 Tue +1w>")
+                 "2026-06-02 Tue +1w"))
+  ;; Other repeater/offset cookies survive intact.
+  (should (equal (org-kanban-modern--format-timestamp "<2026-06-02 Tue .+1m>")
+                 "2026-06-02 Tue .+1m"))
+  (should (equal (org-kanban-modern--format-timestamp "<2026-06-02 Tue ++1y -3d>")
+                 "2026-06-02 Tue ++1y -3d"))
+  ;; A time range is preserved.
+  (should (equal (org-kanban-modern--format-timestamp "<2026-06-02 Tue 09:00-10:00>")
+                 "2026-06-02 Tue 09:00-10:00"))
+  ;; Inactive timestamps are handled defensively.
+  (should (equal (org-kanban-modern--format-timestamp "[2026-06-02 Tue]")
+                 "2026-06-02 Tue"))
+  ;; A timestamp range drops the inner delimiters too.
+  (should (equal (org-kanban-modern--format-timestamp
+                  "<2026-06-02 Tue>--<2026-06-03 Wed>")
+                 "2026-06-02 Tue--2026-06-03 Wed")))
+
+(ert-deftest org-kanban-modern-test-planning-raw ()
+  "`--planning-raw' preserves repeaters and warning periods from real Org."
+  (with-temp-buffer
+    (let ((org-inhibit-startup t))
+      (org-mode)
+      (insert "* TODO Example\n"
+              "SCHEDULED: <2026-06-02 Tue +1w -3d> DEADLINE: <2026-06-09 Tue ++1m>\n")
+      (goto-char (point-min))
+      (let ((el (org-element-at-point)))
+        (should (equal (org-kanban-modern--planning-raw el :scheduled)
+                       "<2026-06-02 Tue +1w -3d>"))
+        (should (equal (org-kanban-modern--planning-raw el :deadline)
+                       "<2026-06-09 Tue ++1m>")))))
+  ;; A heading with no planning info yields nil for both.
+  (with-temp-buffer
+    (let ((org-inhibit-startup t))
+      (org-mode)
+      (insert "* TODO Bare\n")
+      (goto-char (point-min))
+      (let ((el (org-element-at-point)))
+        (should-not (org-kanban-modern--planning-raw el :scheduled))
+        (should-not (org-kanban-modern--planning-raw el :deadline))))))
+
+(ert-deftest org-kanban-modern-test-planning-lines ()
+  "Planning lines render deadline first, then scheduled, gated on the toggle."
+  (let* ((org-kanban-modern-scheduled-glyph "S:")
+         (org-kanban-modern-deadline-glyph "D:")
+         (card (org-kanban-modern-card-create
+                :id "x" :title "Task" :todo "TODO"
+                :scheduled "<2026-06-02 Tue +1w>"
+                :deadline "<2026-06-09 Tue>")))
+    ;; Both set: deadline line precedes the scheduled line.
+    (let ((org-kanban-modern-show-planning t))
+      (let ((lines (org-kanban-modern--planning-lines card 40)))
+        (should (= (length lines) 2))
+        (should (string-prefix-p "D:" (nth 0 lines)))
+        (should (string-match-p "2026-06-09 Tue" (nth 0 lines)))
+        (should (string-prefix-p "S:" (nth 1 lines)))
+        ;; The repeater is preserved on the scheduled line.
+        (should (string-match-p (regexp-quote "2026-06-02 Tue +1w") (nth 1 lines)))))
+    ;; The toggle suppresses planning entirely.
+    (let ((org-kanban-modern-show-planning nil))
+      (should-not (org-kanban-modern--planning-lines card 40))))
+  ;; Neither set: no lines.
+  (let ((org-kanban-modern-show-planning t)
+        (card (org-kanban-modern-card-create
+               :id "y" :title "Task" :todo "TODO")))
+    (should-not (org-kanban-modern--planning-lines card 40)))
+  ;; Only one set: a single line.
+  (let ((org-kanban-modern-show-planning t)
+        (card (org-kanban-modern-card-create
+               :id "z" :title "Task" :todo "TODO"
+               :scheduled "<2026-06-02 Tue>")))
+    (should (= (length (org-kanban-modern--planning-lines card 40)) 1))))
+
+(ert-deftest org-kanban-modern-test-planning-lines-in-card ()
+  "Planning lines appear between the title and the tags in a rendered card."
+  (let* ((org-kanban-modern-show-planning t)
+         (org-kanban-modern-scheduled-glyph "S:")
+         (org-kanban-modern-deadline-glyph "D:")
+         (card (org-kanban-modern-card-create
+                :id "x" :title "Task" :todo "TODO" :tags '("work")
+                :scheduled "<2026-06-02 Tue +1w>"
+                :deadline "<2026-06-09 Tue>"))
+         (lines (org-kanban-modern--card-lines card 30 nil))
+         (joined (mapcar #'substring-no-properties lines))
+         (title-row (cl-position-if (lambda (l) (string-match-p "Task" l)) joined))
+         (deadline-row (cl-position-if (lambda (l) (string-match-p "D:" l)) joined))
+         (scheduled-row (cl-position-if (lambda (l) (string-match-p "S:" l)) joined))
+         (tag-row (cl-position-if (lambda (l) (string-match-p "#work" l)) joined)))
+    (should title-row)
+    (should deadline-row)
+    (should scheduled-row)
+    (should tag-row)
+    ;; Order: title < deadline < scheduled < tags.
+    (should (< title-row deadline-row scheduled-row tag-row))))
+
 ;;;; Done date filtering
 
 (defun org-kanban-modern-test--closed (days-ago)
