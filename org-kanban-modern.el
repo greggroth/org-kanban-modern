@@ -77,8 +77,10 @@ Possible values:
 - `document' : keep the source document / collection order (the order
   headings appear in the Org files).
 - `priority' : sort by Org priority, highest first (an =[#A]= card
-  before =[#B]=, and unprioritized cards last); cards of equal
-  priority keep their document order.
+  before =[#B]=).  Mirroring `org-agenda', a card with no priority
+  cookie is treated as `org-default-priority' (normally =?B=), so it
+  sorts among cards of that priority; equal-priority cards keep their
+  document order.
 - a function : a predicate of two cards, returning non-nil when the
   first card should sort before the second (passed to `sort')."
   :type '(choice (const :tag "Document order" document)
@@ -416,9 +418,11 @@ days ago are skipped."
 
 (defun org-kanban-modern--priority-rank (card)
   "Return a sortable rank for CARD's priority; lower sorts first.
-Explicit priorities rank by their character code (so =?A= precedes
-=?B=); cards without a priority rank last."
-  (or (org-kanban-modern-card-priority card) most-positive-fixnum))
+Priorities rank by their character code (so =?A= precedes =?B=).
+Mirroring `org-agenda', a card with no explicit priority cookie is
+treated as having `org-default-priority', so it sorts alongside cards
+of that priority rather than last."
+  (or (org-kanban-modern-card-priority card) org-default-priority))
 
 (defun org-kanban-modern--sort-cards (cards)
   "Return CARDS ordered per `org-kanban-modern-sort'.

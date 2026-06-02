@@ -32,8 +32,10 @@ configurable set of Org files.  The board is inspired by the visual polish of
   ~org-priority-faces~ — by default the =[#X]= cookie is colored, or you can
   tint the whole card background (see ~org-kanban-modern-priority-style~).
 - *Sorting.*  Within each column, cards are sorted by Org priority (highest
-  first, unprioritized last) by default; set ~org-kanban-modern-sort~ to
-  ~document~ for source order, or to a predicate for a custom order.
+  first) by default.  Like ~org-agenda~, an unprioritized card is treated as
+  ~org-default-priority~ (normally =[#B]=), so it interleaves with explicit
+  =[#B]= cards.  Set ~org-kanban-modern-sort~ to ~document~ for source order,
+  or to a predicate for a custom order.
 
 * Installation
 
@@ -84,9 +86,11 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
 - ~org-kanban-modern-columns~ — column keywords (default from
   ~org-todo-keywords~).
 - ~org-kanban-modern-sort~ — order of cards within each column.  ~priority~
-  (default) sorts highest Org priority first, then unprioritized; equal
-  priorities keep document order.  ~document~ keeps source order.  May also be
-  a predicate of two cards (passed to ~sort~).
+  (default) sorts highest Org priority first; like ~org-agenda~, an
+  unprioritized card is treated as ~org-default-priority~ (normally =[#B]=) and
+  interleaves with explicit =[#B]= cards.  Equal priorities keep document
+  order.  ~document~ keeps source order.  May also be a predicate of two cards
+  (passed to ~sort~).
 - ~org-kanban-modern-column-width~ — fixed column width in characters.
 - ~org-kanban-modern-render-markup~ — render Org inline markup in card
   titles (default ~t~).  Emphasis (=*bold*=, =/italic/=, =~code~=, …) is
