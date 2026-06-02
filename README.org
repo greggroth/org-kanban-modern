@@ -1,5 +1,5 @@
 #+title: org-kanban-modern
-#+author: Greg Roth
+#+author: Gregg Rothmeier
 #+options: toc:nil num:nil
 
 A modern, mouse- and keyboard-driven *kanban board* for Org-mode TODOs.

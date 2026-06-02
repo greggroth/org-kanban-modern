@@ -1,9 +1,9 @@
 ;;; org-kanban-modern.el --- A modern kanban board for Org TODOs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2026 Greg Roth
+;; Copyright (C) 2026 Gregg Rothmeier
 
-;; Author: Greg Roth
-;; Maintainer: Greg Roth
+;; Author: Gregg Rothmeier
+;; Maintainer: Gregg Rothmeier
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "28.1"))
 ;; Keywords: outlines, convenience, org
