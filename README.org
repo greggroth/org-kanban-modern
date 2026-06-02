@@ -1,0 +1,72 @@
+#+title: org-kanban-modern
+#+author: Greg Roth
+#+options: toc:nil num:nil
+
+A modern, mouse- and keyboard-driven *kanban board* for Org-mode TODOs.
+
+Columns are TODO states; cards are your TODO headings, pulled live from a
+configurable set of Org files.  The board is inspired by the visual polish of
+[[https://github.com/minad/org-modern][org-modern]] and the tag-filtering UX of
+[[https://github.com/skeeto/elfeed][elfeed]].
+
+* Features
+
+- *Columns from your workflow.*  Defaults to the keywords in
+  ~org-todo-keywords~; fully configurable.
+- *Live data.*  Cards are collected from ~org-kanban-modern-files~ (defaults to
+  ~org-agenda-files~).
+- *Click to select.*  Click a card to select it; the selection is shown with a
+  distinct highlight.
+- *Keyboard to move.*  Move the selected card between columns; the change is
+  *written back* to the source Org file via ~org-todo~ (logging/notes honored).
+- *Tags on cards, elfeed-style filtering.*  Tags appear as clickable chips.
+  Click a tag on a card to toggle it into the filter (multiple tags combine with
+  AND).  Active filters appear as chips in the header line — click one to remove
+  it.
+- *Priority filtering.*  Filter by Org priority, with a clickable priority
+  cookie on each card.
+
+* Installation
+
+Clone the repository and add it to your ~load-path~:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "~/code/org-kanban-modern")
+(require 'org-kanban-modern)
+#+end_src
+
+* Usage
+
+Run =M-x org-kanban-modern= to open the board.
+
+** Keybindings
+
+| Key                   | Action                                    |
+|-----------------------+-------------------------------------------|
+| =mouse-1= (card)      | Select card                               |
+| =mouse-1= (card tag)  | Toggle that tag in the filter             |
+| =mouse-1= (header tag) | Remove that tag from the filter          |
+| =n= / =p=             | Select next / previous card in column     |
+| =f= / =b=             | Move selection to next / previous column  |
+| =TAB= / =S-TAB=       | Move selection forward / backward column  |
+| =M-<right>= / =>=     | Move card to next column (persisted)      |
+| =M-<left>=  / =<=     | Move card to previous column (persisted)  |
+| =t t=                 | Toggle a tag in the filter (prompt)       |
+| =t r=                 | Remove a tag from the filter (prompt)     |
+| =t p=                 | Filter by priority (prompt)               |
+| =t c=                 | Clear all filters                         |
+| =g=                   | Refresh                                   |
+| =q=                   | Quit                                      |
+
+* Customization
+
+See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
+
+- ~org-kanban-modern-files~ — files to scan (default ~org-agenda-files~).
+- ~org-kanban-modern-columns~ — column keywords (default from
+  ~org-todo-keywords~).
+- ~org-kanban-modern-column-width~ — fixed column width in characters.
+
+* License
+
+GPL-3.0-or-later.  See [[file:LICENSE][LICENSE]].
