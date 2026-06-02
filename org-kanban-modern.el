@@ -43,7 +43,6 @@
 
 (require 'cl-lib)
 (require 'subr-x)
-(require 'color)
 (require 'org)
 (require 'org-element)
 
@@ -136,28 +135,13 @@ instead of inventing its own.
 
 Possible values:
 
-  cookie      Color the [#X] priority cookie on the card (default).
-  background  Tint the whole card background toward the priority color,
-              for a more attention-grabbing high-priority card.
-  both        Color the cookie and tint the background.
-  nil         Render priorities with no special color.
+  cookie  Color the [#X] priority cookie on the card (default).
+  nil     Render priorities with no special color.
 
-Background tinting blends the priority color into the neutral card
-background by `org-kanban-modern-priority-tint'.  A selected card always
-uses the selection background regardless of priority; its cookie is still
-colored when the style includes the cookie."
+A selected card always uses the selection background regardless of
+priority; its cookie is still colored when the style is `cookie'."
   :type '(choice (const :tag "Color the priority cookie" cookie)
-                 (const :tag "Tint the card background" background)
-                 (const :tag "Color cookie and tint background" both)
                  (const :tag "No priority color" nil))
-  :group 'org-kanban-modern)
-
-(defcustom org-kanban-modern-priority-tint 0.18
-  "Fraction (0.0 to 1.0) of the priority color blended into the card.
-Only used when `org-kanban-modern-priority-style' tints the background.
-0.0 disables tinting; larger values make high-priority cards more
-saturated."
-  :type 'number
   :group 'org-kanban-modern)
 
 (defcustom org-kanban-modern-line-spacing 0
@@ -531,19 +515,6 @@ help-echo so cards keep their own click behavior."
                                     org-kanban-modern--markup-strip-props s)
             s))))))
 
-(defun org-kanban-modern--blend (accent bg fraction)
-  "Blend color ACCENT into color BG by FRACTION (0.0 to 1.0).
-Return a hex color string, or nil if either color cannot be parsed
-\(e.g. on a terminal whose default background is unspecified)."
-  (let ((a (color-name-to-rgb accent))
-        (b (color-name-to-rgb bg)))
-    (when (and a b)
-      (apply #'color-rgb-to-hex
-             (append (cl-mapcar (lambda (x y)
-                                  (+ (* fraction x) (* (- 1.0 fraction) y)))
-                                a b)
-                     (list 2))))))
-
 (defun org-kanban-modern--priority-spec (priority)
   "Return the configured face-or-color for PRIORITY from `org-priority-faces'.
 Return nil when PRIORITY is nil or has no configured entry.  Each value
@@ -565,40 +536,6 @@ base styling).  When PRIORITY has no configured entry, fall back to
      ;; A face symbol or attribute plist: apply it first so it wins, with
      ;; our face underneath for fixed-pitch.
      (t (list spec 'org-kanban-modern-priority)))))
-
-(defun org-kanban-modern--priority-color (priority)
-  "Return a color string for PRIORITY from `org-priority-faces', or nil.
-Resolve a configured color string directly, or a configured face to its
-foreground (through inheritance)."
-  (let ((spec (org-kanban-modern--priority-spec priority)))
-    (cond
-     ((null spec) nil)
-     ((stringp spec) spec)
-     ((and (symbolp spec) (facep spec))
-      (let ((fg (face-foreground spec nil t)))
-        (and (stringp fg) fg)))
-     ((listp spec) (plist-get spec :foreground))
-     (t nil))))
-
-(defun org-kanban-modern--priority-background-face (priority)
-  "Return an anonymous face tinting the card background for PRIORITY.
-Active only when `org-kanban-modern-priority-style' tints the background.
-The priority color (from `org-priority-faces') is blended into the
-neutral card background by `org-kanban-modern-priority-tint' (clamped to
-0.0..1.0).  Return nil when PRIORITY is unset, has no color, the tint is
-zero, or the colors cannot be resolved, so the caller falls back to the
-neutral card background."
-  (when (and priority
-             (memq org-kanban-modern-priority-style '(background both)))
-    (let ((tint (max 0.0 (min 1.0 (float org-kanban-modern-priority-tint)))))
-      (when (> tint 0)
-        (let ((color (org-kanban-modern--priority-color priority))
-              (bg (or (face-background 'org-kanban-modern-card nil t)
-                      (face-background 'default nil 'default))))
-          (when (and color bg)
-            (let ((hex (org-kanban-modern--blend color bg tint)))
-              (when hex
-                (list :inherit 'org-kanban-modern-card :background hex)))))))))
 
 (defun org-kanban-modern--tags-string (card content-width)
   "Return a propertized, clickable tag string for CARD.
@@ -651,7 +588,6 @@ the clickable, filter-toggling elements."
   (let* ((content-width (- width org-kanban-modern--bar-width))
          (prio (org-kanban-modern-card-priority card))
          (base (cond (selectedp 'org-kanban-modern-card-selected)
-                     ((org-kanban-modern--priority-background-face prio))
                      (t 'org-kanban-modern-card)))
          ;; Draw the selection accent as a solid background fill rather than a
          ;; foreground glyph: a half-block character only paints as tall as its
@@ -668,9 +604,13 @@ the clickable, filter-toggling elements."
          (rendered (org-kanban-modern--fontify-title
                     (org-kanban-modern-card-title card)))
          (title (concat (when prio (propertize (format "[#%c] " prio)
-                                               'face (if (memq org-kanban-modern-priority-style
-                                                               '(cookie both))
-                                                         (org-kanban-modern--priority-cookie-face prio)
+                                               ;; Any non-nil style colors the
+                                               ;; cookie, so a legacy
+                                               ;; `background'/`both' value
+                                               ;; migrates to cookie coloring
+                                               ;; rather than no color at all.
+                                               'face (if org-kanban-modern-priority-style
+                                                        (org-kanban-modern--priority-cookie-face prio)
                                                        'org-kanban-modern-priority)))
                         (progn
                           ;; Lay the title face underneath as the base so any

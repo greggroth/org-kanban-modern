@@ -28,9 +28,9 @@ configurable set of Org files.  The board is inspired by the visual polish of
   line — click one to remove it.
 - *Priority filtering.*  Filter by Org priority, with a clickable priority
   cookie on each card.
-- *Priority coloring.*  Cards reflect their Org priority using your configured
-  ~org-priority-faces~ — by default the =[#X]= cookie is colored, or you can
-  tint the whole card background (see ~org-kanban-modern-priority-style~).
+- *Priority coloring.*  The =[#X]= priority cookie on each card is colored
+  using your configured ~org-priority-faces~ — the same source =org-agenda=
+  uses (see ~org-kanban-modern-priority-style~).
 - *Sorting.*  Within each column, cards are sorted by Org priority (highest
   first) by default.  Like ~org-agenda~, an unprioritized card is treated as
   ~org-default-priority~ (normally =[#B]=), so it interleaves with explicit
@@ -153,13 +153,8 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
 - ~org-kanban-modern-priority-style~ — how a card reflects its Org priority
   (default ~cookie~).  Colors come from Org's own ~org-priority-faces~ (with
   the ~org-priority~ face as fallback), the same source =org-agenda= uses, so
-  priorities look consistent across Org.  Choices: ~cookie~ (tint the =[#X]=
-  cookie — the default), ~background~ (tint the whole card background),
-  ~both~, or ~nil~ (no priority coloring).
-- ~org-kanban-modern-priority-tint~ — blend strength (0.0–1.0, default 0.18)
-  of the priority color into the card background.  Only applies when
-  ~org-kanban-modern-priority-style~ tints the background (~background~ or
-  ~both~).
+  priorities look consistent across Org.  Choices: ~cookie~ (color the =[#X]=
+  cookie — the default) or ~nil~ (no priority coloring).
 - ~org-kanban-modern-line-spacing~ — buffer-local ~line-spacing~ for the board
   (default ~0~).  Cards are solid colored tiles; if your frame or theme adds
   inter-line spacing, the card background does not fill it and faint stripes

@@ -180,45 +180,6 @@ order."
 
 ;;;; Priority coloring
 
-(ert-deftest org-kanban-modern-test-blend-identity ()
-  ;; At the exact endpoints a self-blend returns that color, and any blend
-  ;; result is a 7-char hex string.  (Arbitrary fractions are subject to
-  ;; float rounding, so only the exact endpoints are asserted here.)
-  (cl-letf (((symbol-function 'color-name-to-rgb)
-             (lambda (_) '(0.2 0.4 0.6))))
-    (let ((expect (color-rgb-to-hex 0.2 0.4 0.6 2)))
-      (should (equal (org-kanban-modern--blend "x" "x" 0.0) expect))
-      (should (equal (org-kanban-modern--blend "x" "x" 1.0) expect))
-      (let ((mid (org-kanban-modern--blend "x" "x" 0.3)))
-        (should (stringp mid))
-        (should (= (length mid) 7))
-        (should (eq (aref mid 0) ?#))))))
-
-(ert-deftest org-kanban-modern-test-blend-endpoints ()
-  ;; Fraction 0 returns the background; fraction 1 returns the accent.
-  (cl-letf (((symbol-function 'color-name-to-rgb)
-             (lambda (c) (if (equal c "acc") '(1.0 0.0 0.0) '(0.0 1.0 0.0)))))
-    (should (equal (org-kanban-modern--blend "acc" "bg" 0.0)
-                   (color-rgb-to-hex 0.0 1.0 0.0 2)))
-    (should (equal (org-kanban-modern--blend "acc" "bg" 1.0)
-                   (color-rgb-to-hex 1.0 0.0 0.0 2)))))
-
-(ert-deftest org-kanban-modern-test-blend-unparsable ()
-  ;; Unresolvable colors (e.g. unspecified TTY background) yield nil.
-  (cl-letf (((symbol-function 'color-name-to-rgb) (lambda (_) nil)))
-    (should-not (org-kanban-modern--blend "x" "y" 0.2))))
-
-(ert-deftest org-kanban-modern-test-priority-color ()
-  ;; Colors are sourced from Org's own `org-priority-faces'.
-  (let ((org-priority-faces '((?A . "#ff0000") (?B . shadow))))
-    (should (equal (org-kanban-modern--priority-color ?A) "#ff0000"))
-    ;; A configured face resolves to its foreground (shadow has one).
-    (should (equal (org-kanban-modern--priority-color ?B)
-                   (face-foreground 'shadow nil t)))
-    ;; Unmapped / nil priorities have no color.
-    (should-not (org-kanban-modern--priority-color ?C))
-    (should-not (org-kanban-modern--priority-color nil))))
-
 (ert-deftest org-kanban-modern-test-priority-cookie-face ()
   (let ((org-priority-faces '((?A . "#ff0000") (?B . shadow))))
     ;; A color string becomes a foreground laid over our base face.
@@ -232,54 +193,28 @@ order."
     (should (eq (org-kanban-modern--priority-cookie-face ?C)
                 'org-kanban-modern-priority))))
 
-(ert-deftest org-kanban-modern-test-priority-bg-style-gate ()
-  ;; The background face only appears when the style tints the background.
-  (cl-letf (((symbol-function 'face-background)
-             (lambda (&rest _) "#ffffff")))
-    (let ((org-priority-faces '((?A . "#ff0000")))
-          (org-kanban-modern-priority-tint 0.2))
-      (let ((org-kanban-modern-priority-style 'cookie))
-        (should-not (org-kanban-modern--priority-background-face ?A)))
-      (let ((org-kanban-modern-priority-style nil))
-        (should-not (org-kanban-modern--priority-background-face ?A)))
-      (let ((org-kanban-modern-priority-style 'background))
-        (should (org-kanban-modern--priority-background-face ?A)))
-      (let ((org-kanban-modern-priority-style 'both))
-        (should (org-kanban-modern--priority-background-face ?A))))))
-
-(ert-deftest org-kanban-modern-test-priority-bg-nil ()
-  ;; No priority, and a zero tint, both yield no tint face.
-  (cl-letf (((symbol-function 'face-background)
-             (lambda (&rest _) "#ffffff")))
-    (let ((org-kanban-modern-priority-style 'background)
-          (org-priority-faces '((?A . "#ff0000"))))
-      (let ((org-kanban-modern-priority-tint 0.2))
-        (should-not (org-kanban-modern--priority-background-face nil)))
-      (let ((org-kanban-modern-priority-tint 0))
-        (should-not (org-kanban-modern--priority-background-face ?A))))))
-
-(ert-deftest org-kanban-modern-test-priority-bg-unmapped ()
-  ;; A priority with no entry in `org-priority-faces' gets no tint face.
-  (cl-letf (((symbol-function 'face-background)
-             (lambda (&rest _) "#ffffff")))
-    (let ((org-kanban-modern-priority-style 'background)
-          (org-priority-faces '((?A . "#ff0000")))
-          (org-kanban-modern-priority-tint 0.2))
-      (should-not (org-kanban-modern--priority-background-face ?C)))))
-
-(ert-deftest org-kanban-modern-test-priority-bg-mapped ()
-  ;; A mapped priority yields a face inheriting the card with a tinted bg.
-  (cl-letf (((symbol-function 'face-background)
-             (lambda (&rest _) "#ffffff")))
-    (let ((org-kanban-modern-priority-style 'background)
-          (org-priority-faces '((?A . "#ff0000")))
-          (org-kanban-modern-priority-tint 0.2))
-      (let ((res (org-kanban-modern--priority-background-face ?A)))
-        (should res)
-        (should (eq (plist-get res :inherit) 'org-kanban-modern-card))
-        (should (stringp (plist-get res :background)))
-        ;; 20% red into white is a pale red, not pure white or pure red.
-        (should-not (equal (plist-get res :background) "#ffffff"))))))
+(ert-deftest org-kanban-modern-test-priority-style-gate ()
+  "The [#X] cookie is colored only when the style is non-nil."
+  (let* ((org-priority-faces '((?A . "#ff0000")))
+         (card (org-kanban-modern-card-create
+                :id "x" :title "Task" :todo "TODO" :priority ?A))
+         (cookie-face
+          (lambda (style)
+            (let* ((org-kanban-modern-priority-style style)
+                   (line (car (org-kanban-modern--card-lines card 24 nil)))
+                   (pos (string-match "\\[#A\\]" line))
+                   (face (get-text-property pos 'face line)))
+              (if (listp face) face (list face))))))
+    ;; A non-nil style colors the cookie: the priority foreground is present.
+    (should (member '(:foreground "#ff0000") (funcall cookie-face 'cookie)))
+    ;; A nil style leaves the cookie on the plain priority face only.
+    (let ((face (funcall cookie-face nil)))
+      (should-not (member '(:foreground "#ff0000") face))
+      (should (member 'org-kanban-modern-priority face)))
+    ;; The defcustom no longer offers background tinting.
+    (should (equal (get 'org-kanban-modern-priority-style 'custom-type)
+                   '(choice (const :tag "Color the priority cookie" cookie)
+                            (const :tag "No priority color" nil))))))
 
 ;;;; Done date filtering
 
