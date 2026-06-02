@@ -270,8 +270,15 @@ Sets no background so the card background shows through."
 
 (defface org-kanban-modern-tag-active
   '((t :inherit (fixed-pitch org-tag) :inverse-video t :weight bold))
-  "Face for a tag chip that is part of the active filter.
+  "Face for a tag chip that is included in the active filter.
 Uses `:inverse-video' so the highlight tracks the theme."
+  :group 'org-kanban-modern)
+
+(defface org-kanban-modern-tag-excluded
+  '((t :inherit (fixed-pitch org-tag shadow) :strike-through t))
+  "Face for a tag chip that is excluded from the active filter.
+The strike-through and dimmed `shadow' inheritance signal that cards
+carrying this tag are hidden; both track the theme."
   :group 'org-kanban-modern)
 
 (defface org-kanban-modern-tag-hover
@@ -283,7 +290,15 @@ signal that clicking the tag toggles it in the filter."
 
 (defface org-kanban-modern-filter-chip
   '((t :inherit (fixed-pitch mode-line-emphasis) :inverse-video t))
-  "Face for an active-filter chip in the header line."
+  "Face for an active include-filter chip in the header line."
+  :group 'org-kanban-modern)
+
+(defface org-kanban-modern-filter-chip-exclude
+  '((t :inherit (fixed-pitch mode-line-emphasis) :inverse-video t
+       :strike-through t))
+  "Face for an active exclude-filter chip in the header line.
+Like `org-kanban-modern-filter-chip' but struck through to mark that the
+tag is excluded rather than required."
   :group 'org-kanban-modern)
 
 (defface org-kanban-modern-empty
@@ -443,24 +458,52 @@ days ago are skipped."
   "ID of the currently selected card, or nil.")
 
 (defvar-local org-kanban-modern--tag-filter nil
-  "List of tags that cards must all carry to be shown (AND filter).")
+  "List of tags a card must all carry to be shown (the include filter).")
+
+(defvar-local org-kanban-modern--tag-exclude nil
+  "List of tags that hide a card when present (the exclude filter).
+A card is shown only if it carries none of these tags.")
 
 (defvar-local org-kanban-modern--priority-filter nil
   "Priority character cards must match, or nil for no priority filter.")
 
 ;;;; Filtering
 
+(defun org-kanban-modern--tag-state (tag)
+  "Return TAG's current filter state: `include', `exclude', or nil."
+  (cond
+   ((member tag org-kanban-modern--tag-filter) 'include)
+   ((member tag org-kanban-modern--tag-exclude) 'exclude)
+   (t nil)))
+
+(defun org-kanban-modern--set-tag-state (tag state)
+  "Set TAG's filter STATE, keeping the include and exclude lists disjoint.
+STATE is `include', `exclude', or nil.  A tag is in at most one list;
+moving it into one list removes it from the other.  This is the only
+function that should mutate the tag-filter lists, so the invariant that
+no tag is both included and excluded always holds."
+  (setq org-kanban-modern--tag-filter
+        (delete tag org-kanban-modern--tag-filter)
+        org-kanban-modern--tag-exclude
+        (delete tag org-kanban-modern--tag-exclude))
+  (pcase state
+    ('include (push tag org-kanban-modern--tag-filter))
+    ('exclude (push tag org-kanban-modern--tag-exclude))))
+
 (defun org-kanban-modern--filtered (cards)
   "Return the members of CARDS passing the active filters."
   (cl-remove-if-not
    (lambda (card)
-     (and (or (null org-kanban-modern--tag-filter)
-              (cl-subsetp org-kanban-modern--tag-filter
-                          (org-kanban-modern-card-tags card)
-                          :test #'string=))
-          (or (null org-kanban-modern--priority-filter)
-              (eql org-kanban-modern--priority-filter
-                   (org-kanban-modern-card-priority card)))))
+     (let ((tags (org-kanban-modern-card-tags card)))
+       (and (or (null org-kanban-modern--tag-filter)
+                (cl-subsetp org-kanban-modern--tag-filter tags
+                            :test #'string=))
+            (or (null org-kanban-modern--tag-exclude)
+                (null (cl-intersection org-kanban-modern--tag-exclude tags
+                                       :test #'string=)))
+            (or (null org-kanban-modern--priority-filter)
+                (eql org-kanban-modern--priority-filter
+                     (org-kanban-modern-card-priority card))))))
    cards))
 
 (defun org-kanban-modern--priority-rank (card)
@@ -662,20 +705,28 @@ set), or nil when planning display is disabled or neither is set."
               lines))
       (nreverse lines))))
 
+(defvar org-kanban-modern--tag-chip-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-3] #'org-kanban-modern--mouse-exclude-click)
+    map)
+  "Keymap placed on card tag chips so mouse-3 toggles the exclude filter.
+Mouse-1 is intentionally left to the mode map's selection handler.")
+
 (defun org-kanban-modern--tags-string (card content-width)
   "Return a propertized, clickable tag string for CARD.
 The result is truncated to CONTENT-WIDTH display columns."
   (let ((chips '()))
     (dolist (tag (org-kanban-modern-card-tags card))
-      (let* ((activep (member tag org-kanban-modern--tag-filter))
-             (face (if activep
-                       'org-kanban-modern-tag-active
-                     'org-kanban-modern-tag)))
+      (let ((face (pcase (org-kanban-modern--tag-state tag)
+                    ('include 'org-kanban-modern-tag-active)
+                    ('exclude 'org-kanban-modern-tag-excluded)
+                    (_ 'org-kanban-modern-tag))))
         (push (propertize (concat "#" tag)
                           'face face
                           'org-kanban-modern-tag tag
                           'mouse-face 'org-kanban-modern-tag-hover
-                          'help-echo "mouse-1: toggle this tag in the filter")
+                          'keymap org-kanban-modern--tag-chip-keymap
+                          'help-echo "mouse-1: include this tag, mouse-3: exclude it")
               chips)))
     (let ((s (mapconcat #'identity (nreverse chips) " ")))
       (if (> (string-width s) content-width)
@@ -943,15 +994,24 @@ first visible card is selected, or nil when nothing is visible."
 
 (defun org-kanban-modern--mouse-click (event)
   "Handle a mouse-1 click on a card or one of its tags.
-A click on a tag chip toggles that tag in the filter; a click anywhere
-else on the card selects it."
+A click on a tag chip toggles that tag in the include filter; a click
+anywhere else on the card selects it."
   (interactive "e")
   (let* ((pos (posn-point (event-start event)))
          (tag (and pos (get-text-property pos 'org-kanban-modern-tag)))
          (id (and pos (get-text-property pos 'org-kanban-modern-card-id))))
     (cond
-     (tag (org-kanban-modern-toggle-tag tag))
+     (tag (org-kanban-modern-include-tag tag))
      (id (org-kanban-modern--select id)))))
+
+(defun org-kanban-modern--mouse-exclude-click (event)
+  "Toggle the tag under EVENT in the exclude filter.
+Bound to mouse-3 on tag chips only (via a chip-local keymap), so a
+right-click elsewhere in the buffer keeps its default behaviour."
+  (interactive "e")
+  (let* ((pos (posn-point (event-start event)))
+         (tag (and pos (get-text-property pos 'org-kanban-modern-tag))))
+    (when tag (org-kanban-modern-exclude-tag tag))))
 
 ;;;; Movement (persisted to the source file)
 
@@ -1137,22 +1197,51 @@ selected the card, but this re-selects defensively before visiting."
 
 ;;;; Filtering commands
 
-(defun org-kanban-modern-toggle-tag (tag)
-  "Toggle TAG in the active tag filter (elfeed-style)."
+(defun org-kanban-modern-include-tag (tag)
+  "Toggle TAG in the include filter (cards must carry every included tag).
+If TAG is already included it is removed; otherwise it is included,
+dropping it from the exclude filter first."
   (interactive
-   (list (completing-read "Toggle tag: " (org-kanban-modern--all-tags) nil t)))
-  (setq org-kanban-modern--tag-filter
-        (if (member tag org-kanban-modern--tag-filter)
-            (delete tag org-kanban-modern--tag-filter)
-          (cons tag org-kanban-modern--tag-filter)))
+   (list (completing-read "Include tag: " (org-kanban-modern--all-tags) nil t)))
+  (org-kanban-modern--set-tag-state
+   tag (unless (eq (org-kanban-modern--tag-state tag) 'include) 'include))
   (org-kanban-modern--apply-filters))
 
-(defun org-kanban-modern-remove-tag (tag)
-  "Remove TAG from the active tag filter."
+(defalias 'org-kanban-modern-toggle-tag #'org-kanban-modern-include-tag
+  "Toggle TAG in the include filter.
+Kept as an alias of `org-kanban-modern-include-tag' for compatibility.")
+
+(defun org-kanban-modern-exclude-tag (tag)
+  "Toggle TAG in the exclude filter (cards carrying it are hidden).
+If TAG is already excluded it is removed; otherwise it is excluded,
+dropping it from the include filter first."
   (interactive
-   (list (completing-read "Remove tag: " org-kanban-modern--tag-filter nil t)))
+   (list (completing-read "Exclude tag: " (org-kanban-modern--all-tags) nil t)))
+  (org-kanban-modern--set-tag-state
+   tag (unless (eq (org-kanban-modern--tag-state tag) 'exclude) 'exclude))
+  (org-kanban-modern--apply-filters))
+
+(defun org-kanban-modern--active-tags ()
+  "Return all tags in either the include or exclude filter."
+  (append org-kanban-modern--tag-filter org-kanban-modern--tag-exclude))
+
+(defun org-kanban-modern-remove-tag (tag)
+  "Remove TAG from whichever tag filter (include or exclude) it is in."
+  (interactive
+   (list (completing-read "Remove tag: " (org-kanban-modern--active-tags) nil t)))
+  (org-kanban-modern--set-tag-state tag nil)
+  (org-kanban-modern--apply-filters))
+
+(defun org-kanban-modern--remove-include-tag (tag)
+  "Remove TAG from the include filter only."
   (setq org-kanban-modern--tag-filter
         (delete tag org-kanban-modern--tag-filter))
+  (org-kanban-modern--apply-filters))
+
+(defun org-kanban-modern--remove-exclude-tag (tag)
+  "Remove TAG from the exclude filter only."
+  (setq org-kanban-modern--tag-exclude
+        (delete tag org-kanban-modern--tag-exclude))
   (org-kanban-modern--apply-filters))
 
 (defun org-kanban-modern-filter-by-priority (priority)
@@ -1166,9 +1255,10 @@ answer clears the priority filter."
   (org-kanban-modern--apply-filters))
 
 (defun org-kanban-modern-clear-filters ()
-  "Clear all active tag and priority filters."
+  "Clear all active tag (include and exclude) and priority filters."
   (interactive)
   (setq org-kanban-modern--tag-filter nil
+        org-kanban-modern--tag-exclude nil
         org-kanban-modern--priority-filter nil)
   (org-kanban-modern--apply-filters))
 
@@ -1195,12 +1285,20 @@ Re-collects the board so the new window takes effect."
   "Compute the header-line string showing active filter chips."
   (let ((chips '()))
     (dolist (tag (reverse org-kanban-modern--tag-filter))
-      (push (propertize (format " #%s ✕ " tag)
+      (push (propertize (format " +#%s ✕ " tag)
                         'face 'org-kanban-modern-filter-chip
                         'mouse-face 'highlight
                         'keymap (org-kanban-modern--chip-keymap
-                                 #'org-kanban-modern-remove-tag tag)
-                        'help-echo "mouse-1: remove this tag from the filter")
+                                 #'org-kanban-modern--remove-include-tag tag)
+                        'help-echo "mouse-1: remove this include filter")
+            chips))
+    (dolist (tag (reverse org-kanban-modern--tag-exclude))
+      (push (propertize (format " -#%s ✕ " tag)
+                        'face 'org-kanban-modern-filter-chip-exclude
+                        'mouse-face 'highlight
+                        'keymap (org-kanban-modern--chip-keymap
+                                 #'org-kanban-modern--remove-exclude-tag tag)
+                        'help-echo "mouse-1: remove this exclude filter")
             chips))
     (when org-kanban-modern--priority-filter
       (push (propertize (format " [#%c] ✕ " org-kanban-modern--priority-filter)
@@ -1248,6 +1346,8 @@ Re-collects the board so the new window takes effect."
     (define-key map (kbd "RET") #'org-kanban-modern-visit-card)
     (define-key map "o" #'org-kanban-modern-visit-card)
     (define-key map "tt" #'org-kanban-modern-toggle-tag)
+    (define-key map "t+" #'org-kanban-modern-include-tag)
+    (define-key map "t-" #'org-kanban-modern-exclude-tag)
     (define-key map "tr" #'org-kanban-modern-remove-tag)
     (define-key map "tp" #'org-kanban-modern-filter-by-priority)
     (define-key map "tc" #'org-kanban-modern-clear-filters)

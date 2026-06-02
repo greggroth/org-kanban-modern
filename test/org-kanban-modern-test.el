@@ -98,6 +98,97 @@
       (setq org-kanban-modern--tag-filter nil)
       (should (= (length (org-kanban-modern--filtered cards)) 3)))))
 
+(ert-deftest org-kanban-modern-test-filter-tags-exclude ()
+  (with-temp-buffer
+    (let ((cards (list (org-kanban-modern-test--card "a" "TODO" '("work" "urgent") nil)
+                       (org-kanban-modern-test--card "b" "TODO" '("work") nil)
+                       (org-kanban-modern-test--card "c" "TODO" '("home") nil))))
+      (setq org-kanban-modern--tag-filter nil
+            org-kanban-modern--tag-exclude '("work")
+            org-kanban-modern--priority-filter nil)
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--filtered cards))
+                     '("c")))
+      (setq org-kanban-modern--tag-exclude '("urgent" "home"))
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--filtered cards))
+                     '("b"))))))
+
+(ert-deftest org-kanban-modern-test-filter-tags-include-and-exclude ()
+  (with-temp-buffer
+    (let ((cards (list (org-kanban-modern-test--card "a" "TODO" '("work" "urgent") nil)
+                       (org-kanban-modern-test--card "b" "TODO" '("work") nil)
+                       (org-kanban-modern-test--card "c" "TODO" '("work" "urgent" "home") nil))))
+      ;; Must have "work", must not have "home".
+      (setq org-kanban-modern--tag-filter '("work")
+            org-kanban-modern--tag-exclude '("home")
+            org-kanban-modern--priority-filter nil)
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--filtered cards))
+                     '("a" "b"))))))
+
+(ert-deftest org-kanban-modern-test-set-tag-state-mutual-exclusivity ()
+  (with-temp-buffer
+    (setq org-kanban-modern--tag-filter nil
+          org-kanban-modern--tag-exclude nil)
+    (should (eq (org-kanban-modern--tag-state "x") nil))
+    (org-kanban-modern--set-tag-state "x" 'include)
+    (should (eq (org-kanban-modern--tag-state "x") 'include))
+    (should (member "x" org-kanban-modern--tag-filter))
+    (should-not (member "x" org-kanban-modern--tag-exclude))
+    ;; Moving to exclude drops it from include (lists stay disjoint).
+    (org-kanban-modern--set-tag-state "x" 'exclude)
+    (should (eq (org-kanban-modern--tag-state "x") 'exclude))
+    (should-not (member "x" org-kanban-modern--tag-filter))
+    (should (member "x" org-kanban-modern--tag-exclude))
+    ;; nil removes from both.
+    (org-kanban-modern--set-tag-state "x" nil)
+    (should (eq (org-kanban-modern--tag-state "x") nil))
+    (should-not (member "x" org-kanban-modern--tag-filter))
+    (should-not (member "x" org-kanban-modern--tag-exclude))))
+
+(ert-deftest org-kanban-modern-test-include-exclude-commands ()
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'org-kanban-modern--apply-filters) #'ignore))
+      (setq org-kanban-modern--tag-filter nil
+            org-kanban-modern--tag-exclude nil)
+      ;; include toggles on then off.
+      (org-kanban-modern-include-tag "x")
+      (should (eq (org-kanban-modern--tag-state "x") 'include))
+      (org-kanban-modern-include-tag "x")
+      (should (eq (org-kanban-modern--tag-state "x") nil))
+      ;; exclude toggles on then off.
+      (org-kanban-modern-exclude-tag "x")
+      (should (eq (org-kanban-modern--tag-state "x") 'exclude))
+      (org-kanban-modern-exclude-tag "x")
+      (should (eq (org-kanban-modern--tag-state "x") nil))
+      ;; exclude then include flips state, never both.
+      (org-kanban-modern-exclude-tag "x")
+      (org-kanban-modern-include-tag "x")
+      (should (eq (org-kanban-modern--tag-state "x") 'include))
+      (should-not (member "x" org-kanban-modern--tag-exclude)))))
+
+(ert-deftest org-kanban-modern-test-remove-tag-spans-both ()
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'org-kanban-modern--apply-filters) #'ignore))
+      (setq org-kanban-modern--tag-filter '("inc")
+            org-kanban-modern--tag-exclude '("exc"))
+      (org-kanban-modern-remove-tag "inc")
+      (should-not (member "inc" org-kanban-modern--tag-filter))
+      (org-kanban-modern-remove-tag "exc")
+      (should-not (member "exc" org-kanban-modern--tag-exclude)))))
+
+(ert-deftest org-kanban-modern-test-clear-filters-clears-exclude ()
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'org-kanban-modern--apply-filters) #'ignore))
+      (setq org-kanban-modern--tag-filter '("a")
+            org-kanban-modern--tag-exclude '("b")
+            org-kanban-modern--priority-filter ?A)
+      (org-kanban-modern-clear-filters)
+      (should-not org-kanban-modern--tag-filter)
+      (should-not org-kanban-modern--tag-exclude)
+      (should-not org-kanban-modern--priority-filter))))
+
 (ert-deftest org-kanban-modern-test-filter-priority ()
   (with-temp-buffer
     (let ((cards (list (org-kanban-modern-test--card "a" "TODO" nil ?A)

@@ -23,9 +23,11 @@ configurable set of Org files.  The board is inspired by the visual polish of
   with the usual Org menus (=s= / =,= / =:=); edits are written back to the
   source heading and the board refreshes.
 - *Tags on cards, elfeed-style filtering.*  Tags appear as clickable chips that
-  highlight on hover.  Click a tag on a card to toggle it into the filter
-  (multiple tags combine with AND).  Active filters appear as chips in the header
-  line — click one to remove it.
+  highlight on hover.  Left-click a tag on a card to *include* it (cards must
+  carry every included tag); right-click (=mouse-3=) to *exclude* it (cards
+  carrying it are hidden).  A tag is only ever in one of the two filters.  Active
+  filters appear as chips in the header line — =+#tag= for includes and =-#tag=
+  for excludes — click one to remove it.
 - *Priority filtering.*  Filter by Org priority, with a clickable priority
   cookie on each card.
 - *Priority coloring.*  The =[#X]= priority cookie on each card is colored
@@ -127,7 +129,8 @@ repeaters, inline markup, and recently-closed cards.
 | Key                   | Action                                    |
 |-----------------------+-------------------------------------------|
 | =mouse-1= (card)      | Select card                               |
-| =mouse-1= (card tag)  | Toggle that tag in the filter             |
+| =mouse-1= (card tag)  | Toggle that tag in the *include* filter   |
+| =mouse-3= (card tag)  | Toggle that tag in the *exclude* filter   |
 | =mouse-1= (header tag) | Remove that tag from the filter          |
 | =n= / =p=             | Select next / previous card in column     |
 | =f= / =b=             | Move selection to next / previous column  |
@@ -139,7 +142,8 @@ repeaters, inline markup, and recently-closed cards.
 | =:= / =C-c C-q=       | Set the selected card's tags              |
 | =RET= / =o=           | Visit card's heading in its Org file      |
 | =double-mouse-1=      | Visit card's heading in its Org file      |
-| =t t=                 | Toggle a tag in the filter (prompt)       |
+| =t t= / =t +=         | Toggle a tag in the *include* filter (prompt) |
+| =t -=                 | Toggle a tag in the *exclude* filter (prompt) |
 | =t r=                 | Remove a tag from the filter (prompt)     |
 | =t p=                 | Filter by priority (prompt)               |
 | =t c=                 | Clear all filters                         |
