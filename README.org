@@ -31,6 +31,9 @@ configurable set of Org files.  The board is inspired by the visual polish of
 - *Priority coloring.*  Cards reflect their Org priority using your configured
   ~org-priority-faces~ — by default the =[#X]= cookie is colored, or you can
   tint the whole card background (see ~org-kanban-modern-priority-style~).
+- *Sorting.*  Within each column, cards are sorted by Org priority (highest
+  first, unprioritized last) by default; set ~org-kanban-modern-sort~ to
+  ~document~ for source order, or to a predicate for a custom order.
 
 * Installation
 
@@ -80,6 +83,10 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
 - ~org-kanban-modern-files~ — files to scan (default ~org-agenda-files~).
 - ~org-kanban-modern-columns~ — column keywords (default from
   ~org-todo-keywords~).
+- ~org-kanban-modern-sort~ — order of cards within each column.  ~priority~
+  (default) sorts highest Org priority first, then unprioritized; equal
+  priorities keep document order.  ~document~ keeps source order.  May also be
+  a predicate of two cards (passed to ~sort~).
 - ~org-kanban-modern-column-width~ — fixed column width in characters.
 - ~org-kanban-modern-render-markup~ — render Org inline markup in card
   titles (default ~t~).  Emphasis (=*bold*=, =/italic/=, =~code~=, …) is

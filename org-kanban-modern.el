@@ -71,6 +71,21 @@ and done keywords, in order, with the \"|\" separator removed)."
                  (repeat string))
   :group 'org-kanban-modern)
 
+(defcustom org-kanban-modern-sort 'priority
+  "How to order the cards within each column.
+Possible values:
+- `document' : keep the source document / collection order (the order
+  headings appear in the Org files).
+- `priority' : sort by Org priority, highest first (an =[#A]= card
+  before =[#B]=, and unprioritized cards last); cards of equal
+  priority keep their document order.
+- a function : a predicate of two cards, returning non-nil when the
+  first card should sort before the second (passed to `sort')."
+  :type '(choice (const :tag "Document order" document)
+                 (const :tag "Priority, highest first" priority)
+                 (function :tag "Custom predicate"))
+  :group 'org-kanban-modern)
+
 (defcustom org-kanban-modern-column-width 26
   "Width, in characters, of each board column."
   :type 'integer
@@ -399,11 +414,33 @@ days ago are skipped."
                    (org-kanban-modern-card-priority card)))))
    cards))
 
+(defun org-kanban-modern--priority-rank (card)
+  "Return a sortable rank for CARD's priority; lower sorts first.
+Explicit priorities rank by their character code (so =?A= precedes
+=?B=); cards without a priority rank last."
+  (or (org-kanban-modern-card-priority card) most-positive-fixnum))
+
+(defun org-kanban-modern--sort-cards (cards)
+  "Return CARDS ordered per `org-kanban-modern-sort'.
+CARDS is not modified.  `sort' is stable, so equal-ranked cards keep
+their incoming (document) order."
+  (pcase org-kanban-modern-sort
+    ('priority
+     (sort (copy-sequence cards)
+           (lambda (a b)
+             (< (org-kanban-modern--priority-rank a)
+                (org-kanban-modern--priority-rank b)))))
+    ((and (pred functionp) pred)
+     (sort (copy-sequence cards) pred))
+    (_ cards)))
+
 (defun org-kanban-modern--cards-for-column (column cards)
-  "Return the members of CARDS whose TODO keyword is COLUMN."
-  (cl-remove-if-not
-   (lambda (card) (string= (org-kanban-modern-card-todo card) column))
-   cards))
+  "Return the members of CARDS whose TODO keyword is COLUMN.
+The result is ordered according to `org-kanban-modern-sort'."
+  (org-kanban-modern--sort-cards
+   (cl-remove-if-not
+    (lambda (card) (string= (org-kanban-modern-card-todo card) column))
+    cards)))
 
 (defun org-kanban-modern--all-tags ()
   "Return a sorted list of every tag present on a collected card."

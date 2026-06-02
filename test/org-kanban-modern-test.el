@@ -114,11 +114,37 @@
 (ert-deftest org-kanban-modern-test-cards-for-column ()
   (let ((cards (list (org-kanban-modern-test--card "a" "TODO" nil nil)
                      (org-kanban-modern-test--card "b" "STARTED" nil nil)
-                     (org-kanban-modern-test--card "c" "TODO" nil nil))))
+                     (org-kanban-modern-test--card "c" "TODO" nil nil)))
+        (org-kanban-modern-sort 'document))
     (should (equal (mapcar #'org-kanban-modern-card-title
                            (org-kanban-modern--cards-for-column "TODO" cards))
                    '("a" "c")))
     (should (null (org-kanban-modern--cards-for-column "DONE" cards)))))
+
+(ert-deftest org-kanban-modern-test-sort-priority ()
+  "`priority' sorting puts higher priorities first, unprioritized last,
+and keeps document order among equal-priority cards."
+  (let ((cards (list (org-kanban-modern-test--card "none1" "TODO" nil nil)
+                     (org-kanban-modern-test--card "b1" "TODO" nil ?B)
+                     (org-kanban-modern-test--card "a1" "TODO" nil ?A)
+                     (org-kanban-modern-test--card "none2" "TODO" nil nil)
+                     (org-kanban-modern-test--card "a2" "TODO" nil ?A))))
+    (let ((org-kanban-modern-sort 'priority))
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--cards-for-column "TODO" cards))
+                     '("a1" "a2" "b1" "none1" "none2"))))
+    ;; Document order leaves the collection order untouched.
+    (let ((org-kanban-modern-sort 'document))
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--cards-for-column "TODO" cards))
+                     '("none1" "b1" "a1" "none2" "a2"))))
+    ;; A custom predicate is honored.
+    (let ((org-kanban-modern-sort
+           (lambda (x y) (string< (org-kanban-modern-card-title x)
+                                  (org-kanban-modern-card-title y)))))
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--cards-for-column "TODO" cards))
+                     '("a1" "a2" "b1" "none1" "none2"))))))
 
 ;;;; Markup rendering
 
