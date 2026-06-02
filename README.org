@@ -19,6 +19,9 @@ configurable set of Org files.  The board is inspired by the visual polish of
   distinct highlight.
 - *Keyboard to move.*  Move the selected card between columns; the change is
   *written back* to the source Org file via ~org-todo~ (logging/notes honored).
+- *Edit cards in place.*  Set the selected card's TODO state, priority, or tags
+  with the usual Org menus (=s= / =,= / =:=); edits are written back to the
+  source heading and the board refreshes.
 - *Tags on cards, elfeed-style filtering.*  Tags appear as clickable chips that
   highlight on hover.  Click a tag on a card to toggle it into the filter
   (multiple tags combine with AND).  Active filters appear as chips in the header
@@ -54,6 +57,9 @@ Run =M-x org-kanban-modern= to open the board.
 | =TAB= / =S-TAB=       | Move selection forward / backward column  |
 | =M-<right>= / =>=     | Move card to next column (persisted)      |
 | =M-<left>=  / =<=     | Move card to previous column (persisted)  |
+| =s= / =C-c C-t=       | Set the selected card's TODO state        |
+| =,= / =C-c ,=         | Set the selected card's priority          |
+| =:= / =C-c C-q=       | Set the selected card's tags              |
 | =RET= / =o=           | Visit card's heading in its Org file      |
 | =double-mouse-1=      | Visit card's heading in its Org file      |
 | =t t=                 | Toggle a tag in the filter (prompt)       |

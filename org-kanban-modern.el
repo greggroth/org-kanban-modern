@@ -932,6 +932,56 @@ honored, then the buffer is saved."
   (interactive)
   (org-kanban-modern--move -1))
 
+;;;; Editing the selected card in its source file
+
+(defun org-kanban-modern--edit-at-card (action)
+  "Run ACTION on the selected card's heading, then refresh the board.
+ACTION is a function of no arguments called with point on the heading
+in the (widened) source buffer; it is expected to edit the entry.  The
+source buffer is then saved and the board re-collected, preserving the
+selection by stable ID.  Returns the card that was edited."
+  (let ((card (org-kanban-modern--selected-card)))
+    (unless card (user-error "No card selected"))
+    (let ((loc (org-kanban-modern--locate card)))
+      (unless loc
+        (user-error "Cannot locate heading for %S; refresh the board"
+                    (org-kanban-modern-card-title card)))
+      (with-current-buffer (car loc)
+        (org-with-wide-buffer
+         (goto-char (cdr loc))
+         (funcall action))
+        (save-buffer)))
+    ;; Re-collect so the card carries its new state/priority/tags and a fresh
+    ;; marker; the ID is stable across the edit, so the selection survives.
+    (setq org-kanban-modern--cards (org-kanban-modern--collect))
+    (org-kanban-modern--apply-filters)
+    card))
+
+(defun org-kanban-modern-set-todo ()
+  "Set the TODO state of the selected card via the `org-todo' menu.
+Mirrors \\[org-todo] in an Org buffer: the change is written back to the
+source file (logging and notes honored) and the board is refreshed."
+  (interactive)
+  (let ((card (org-kanban-modern--edit-at-card
+               (lambda () (call-interactively #'org-todo)))))
+    (message "Set state of \"%s\"" (org-kanban-modern-card-title card))))
+
+(defun org-kanban-modern-set-priority ()
+  "Set the priority of the selected card via `org-priority'.
+The change is written back to the source file and the board refreshed."
+  (interactive)
+  (let ((card (org-kanban-modern--edit-at-card
+               (lambda () (call-interactively #'org-priority)))))
+    (message "Set priority of \"%s\"" (org-kanban-modern-card-title card))))
+
+(defun org-kanban-modern-set-tags ()
+  "Set the tags of the selected card via `org-set-tags-command'.
+The change is written back to the source file and the board refreshed."
+  (interactive)
+  (let ((card (org-kanban-modern--edit-at-card
+               (lambda () (call-interactively #'org-set-tags-command)))))
+    (message "Set tags of \"%s\"" (org-kanban-modern-card-title card))))
+
 ;;;; Visiting the source heading
 
 (defun org-kanban-modern--reveal ()
@@ -1078,6 +1128,12 @@ Re-collects the board so the new window takes effect."
     (define-key map (kbd "M-<left>") #'org-kanban-modern-move-left)
     (define-key map ">" #'org-kanban-modern-move-right)
     (define-key map "<" #'org-kanban-modern-move-left)
+    (define-key map "s" #'org-kanban-modern-set-todo)
+    (define-key map (kbd "C-c C-t") #'org-kanban-modern-set-todo)
+    (define-key map "," #'org-kanban-modern-set-priority)
+    (define-key map (kbd "C-c ,") #'org-kanban-modern-set-priority)
+    (define-key map ":" #'org-kanban-modern-set-tags)
+    (define-key map (kbd "C-c C-q") #'org-kanban-modern-set-tags)
     (define-key map [mouse-1] #'org-kanban-modern--mouse-click)
     (define-key map [double-mouse-1] #'org-kanban-modern--mouse-visit)
     (define-key map (kbd "RET") #'org-kanban-modern-visit-card)

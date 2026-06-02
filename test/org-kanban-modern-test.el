@@ -293,5 +293,44 @@
                    all)))
           (should (cl-every #'identity all)))))))
 
+;;;; Direct card editing
+
+(ert-deftest org-kanban-modern-test-edit-at-card ()
+  "`--edit-at-card' edits the source heading, saves, and re-collects.
+The selection (stable ID) survives the edit."
+  (let* ((org-todo-keywords '((sequence "TODO" "|" "DONE")))
+         (file (make-temp-file "okm-edit" nil ".org"
+                               "* TODO write tests\n")))
+    (unwind-protect
+        (let ((org-kanban-modern-files (list file))
+              (org-kanban-modern-columns '("TODO" "DONE")))
+          (with-temp-buffer
+            ;; Stand up just enough board state for the helper, and keep
+            ;; rendering headless by stubbing the redraw.
+            (cl-letf (((symbol-function 'org-kanban-modern--render)
+                       #'ignore))
+              (setq org-kanban-modern--cards (org-kanban-modern--collect))
+              (should (= (length org-kanban-modern--cards) 1))
+              (setq org-kanban-modern--selected-id
+                    (org-kanban-modern-card-id (car org-kanban-modern--cards)))
+              (let ((edited (org-kanban-modern--edit-at-card
+                             (lambda () (org-priority ?A)))))
+                ;; The helper returns the (pre-edit) selected card.
+                (should (equal (org-kanban-modern-card-title edited)
+                               "write tests"))
+                ;; The change was written back to disk.
+                (with-temp-buffer
+                  (insert-file-contents file)
+                  (should (string-match-p "\\[#A\\]" (buffer-string))))
+                ;; The board was re-collected with the new priority, and the
+                ;; selection survived because the ID is stable.
+                (let ((card (org-kanban-modern--selected-card)))
+                  (should card)
+                  (should (eq (org-kanban-modern-card-priority card) ?A)))))))
+      (when-let ((buf (find-buffer-visiting file)))
+        (with-current-buffer buf (set-buffer-modified-p nil))
+        (kill-buffer buf))
+      (delete-file file))))
+
 (provide 'org-kanban-modern-test)
 ;;; org-kanban-modern-test.el ends here
