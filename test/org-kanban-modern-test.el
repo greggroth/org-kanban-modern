@@ -120,5 +120,49 @@
                    '("a" "c")))
     (should (null (org-kanban-modern--cards-for-column "DONE" cards)))))
 
+;;;; Done date filtering
+
+(defun org-kanban-modern-test--closed (days-ago)
+  "Return a CLOSED inactive timestamp string DAYS-AGO days in the past."
+  (format-time-string "[%Y-%m-%d %a %H:%M]"
+                      (time-subtract (current-time) (* days-ago 86400))))
+
+(ert-deftest org-kanban-modern-test-show-entry-p ()
+  (let ((org-todo-keywords '((sequence "TODO" "|" "DONE" "CANCELLED"))))
+    (with-temp-buffer
+      (insert "* TODO active\n"
+              "* DONE recent\n  CLOSED: " (org-kanban-modern-test--closed 1) "\n"
+              "* DONE old\n  CLOSED: " (org-kanban-modern-test--closed 30) "\n"
+              "* DONE undated\n"
+              "* CANCELLED old cancel\n  CLOSED: "
+              (org-kanban-modern-test--closed 30) "\n")
+      (org-mode)
+      (let ((now (current-time))
+            (results '()))
+        (org-map-entries
+         (lambda ()
+           (push (cons (org-get-heading t t t t)
+                       (and (org-kanban-modern--show-entry-p
+                             (org-get-todo-state) 7 now)
+                            t))
+                 results)))
+        (setq results (nreverse results))
+        ;; Window of 7 days: active and recently-closed pass; old done is
+        ;; hidden; a done entry with no CLOSED is shown (unknown age);
+        ;; custom done keywords (CANCELLED) obey the same cutoff.
+        (should (cdr (assoc "active" results)))
+        (should (cdr (assoc "recent" results)))
+        (should-not (cdr (assoc "old" results)))
+        (should (cdr (assoc "undated" results)))
+        (should-not (cdr (assoc "old cancel" results)))
+        ;; A nil window shows every entry regardless of CLOSED date.
+        (let ((all '()))
+          (org-map-entries
+           (lambda ()
+             (push (org-kanban-modern--show-entry-p
+                    (org-get-todo-state) nil now)
+                   all)))
+          (should (cl-every #'identity all)))))))
+
 (provide 'org-kanban-modern-test)
 ;;; org-kanban-modern-test.el ends here

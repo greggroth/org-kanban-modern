@@ -85,6 +85,21 @@ and done keywords, in order, with the \"|\" separator removed)."
   :type 'string
   :group 'org-kanban-modern)
 
+(defcustom org-kanban-modern-done-within-days 7
+  "Number of days back for which done cards are shown.
+A \"done\" card is one whose TODO keyword is among the buffer's done
+keywords (those after the \"|\" in `org-todo-keywords').  When this is a
+non-negative integer N, a done card appears only if its CLOSED timestamp
+is within the last N days; done cards lacking a CLOSED timestamp are
+always shown, since their age is unknown.  When nil, all done cards are
+shown regardless of age.
+
+This sets the initial value of the per-board window, which can be changed
+interactively with `org-kanban-modern-set-done-window'."
+  :type '(choice (const :tag "Show all done cards" nil)
+                 (integer :tag "Days"))
+  :group 'org-kanban-modern)
+
 ;;;; Faces
 
 ;; All board faces are defined by INHERITANCE from standard faces rather than
@@ -164,8 +179,9 @@ ID is a stable identifier (file plus outline path) that survives a
 TODO state change, so selection can be preserved across a move.
 MARKER points at the source heading in its (live) file buffer and is
 used as the fast path for locating the heading to move; it is
-verified against TITLE before any destructive edit."
-  id file marker title todo tags priority)
+verified against TITLE before any destructive edit.
+CLOSED is the entry's CLOSED time (a Lisp time value) or nil."
+  id file marker title todo tags priority closed)
 
 (defun org-kanban-modern--strip-keyword (kw)
   "Return the bare keyword name of KW from `org-todo-keywords'.
@@ -210,6 +226,7 @@ SEEN is a hash table used to disambiguate duplicate outline paths."
          (title (or (org-element-property :raw-value el) ""))
          (priority (org-element-property :priority el))
          (tags (org-kanban-modern--effective-tags))
+         (closed (org-kanban-modern--closed-time))
          (path (org-get-outline-path t))
          (base (concat (buffer-file-name) "\0"
                        (mapconcat #'identity path "/")))
@@ -222,13 +239,41 @@ SEEN is a hash table used to disambiguate duplicate outline paths."
      :title title
      :todo todo
      :tags tags
-     :priority priority)))
+     :priority priority
+     :closed closed)))
+
+(defvar-local org-kanban-modern--done-window nil
+  "Days back within which done cards are shown, or nil to show all.
+Initialized from `org-kanban-modern-done-within-days' and adjustable
+with `org-kanban-modern-set-done-window'.")
+
+(defun org-kanban-modern--closed-time ()
+  "Return the CLOSED time of the entry at point as a Lisp time, or nil."
+  (let ((s (org-entry-get (point) "CLOSED")))
+    (and s (org-time-string-to-time s))))
+
+(defun org-kanban-modern--show-entry-p (todo window now)
+  "Return non-nil if the entry at point passes the done-date filter.
+TODO is the entry's keyword; this must run in the entry's Org buffer so
+`org-done-keywords' is accurate.  WINDOW is the number of days back to
+keep done cards (nil shows all).  NOW is the reference time.  Non-done
+entries always pass; a done entry passes when WINDOW is nil, when it has
+no CLOSED timestamp, or when its CLOSED time is within WINDOW days."
+  (or (null window)
+      (not (member todo org-done-keywords))
+      (let ((time (org-kanban-modern--closed-time)))
+        (or (null time)
+            (<= (float-time (time-subtract now time))
+                (* window 86400))))))
 
 (defun org-kanban-modern--collect ()
   "Collect cards from the configured files into a flat list.
-Only headings whose TODO keyword is one of the configured columns
-are included."
+Only headings whose TODO keyword is one of the configured columns are
+included.  Done headings closed more than `org-kanban-modern--done-window'
+days ago are skipped."
   (let ((columns (org-kanban-modern--columns))
+        (window org-kanban-modern--done-window)
+        (now (current-time))
         (seen (make-hash-table :test 'equal))
         (cards '()))
     (dolist (file (org-kanban-modern--resolve-files))
@@ -240,7 +285,8 @@ are included."
              (org-map-entries
               (lambda ()
                 (let ((todo (org-get-todo-state)))
-                  (when (and todo (member todo columns))
+                  (when (and todo (member todo columns)
+                             (org-kanban-modern--show-entry-p todo window now))
                     (push (org-kanban-modern--card-at-point todo seen)
                           cards))))
               nil 'file))))))
@@ -770,6 +816,16 @@ answer clears the priority filter."
         org-kanban-modern--priority-filter nil)
   (org-kanban-modern--apply-filters))
 
+(defun org-kanban-modern-set-done-window (days)
+  "Show done cards closed within DAYS days; blank input shows all.
+Re-collects the board so the new window takes effect."
+  (interactive
+   (list (let ((s (read-string
+                   "Show done cards closed within N days (blank = all): ")))
+           (if (string-empty-p s) nil (max 0 (truncate (string-to-number s)))))))
+  (setq org-kanban-modern--done-window days)
+  (org-kanban-modern-refresh))
+
 ;;;; Header line
 
 (defun org-kanban-modern--chip-keymap (command &rest args)
@@ -798,6 +854,14 @@ answer clears the priority filter."
                                  #'org-kanban-modern-filter-by-priority nil)
                         'help-echo "mouse-1: clear the priority filter")
             chips))
+    (when org-kanban-modern--done-window
+      (push (propertize (format " done ≤%dd ✕ " org-kanban-modern--done-window)
+                        'face 'org-kanban-modern-filter-chip
+                        'mouse-face 'highlight
+                        'keymap (org-kanban-modern--chip-keymap
+                                 #'org-kanban-modern-set-done-window nil)
+                        'help-echo "mouse-1: show all done cards")
+            chips))
     (concat (propertize "Filters: " 'face 'bold)
             (if chips
                 (mapconcat #'identity (nreverse chips) " ")
@@ -825,6 +889,7 @@ answer clears the priority filter."
     (define-key map "tr" #'org-kanban-modern-remove-tag)
     (define-key map "tp" #'org-kanban-modern-filter-by-priority)
     (define-key map "tc" #'org-kanban-modern-clear-filters)
+    (define-key map "td" #'org-kanban-modern-set-done-window)
     (define-key map "g" #'org-kanban-modern-refresh)
     (define-key map "q" #'quit-window)
     map)
@@ -834,6 +899,9 @@ answer clears the priority filter."
   "Major mode for a modern Org TODO kanban board."
   (setq truncate-lines t)
   (setq-local cursor-type nil)
+  (unless (local-variable-p 'org-kanban-modern--done-window)
+    (setq-local org-kanban-modern--done-window
+                org-kanban-modern-done-within-days))
   (buffer-face-set 'fixed-pitch)
   (setq header-line-format '(:eval (org-kanban-modern--header-line))))
 

@@ -57,6 +57,7 @@ Run =M-x org-kanban-modern= to open the board.
 | =t r=                 | Remove a tag from the filter (prompt)     |
 | =t p=                 | Filter by priority (prompt)               |
 | =t c=                 | Clear all filters                         |
+| =t d=                 | Set the done-card date window (prompt)    |
 | =g=                   | Refresh                                   |
 | =q=                   | Quit                                      |
 
@@ -71,6 +72,12 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
 - ~org-kanban-modern-columns~ — column keywords (default from
   ~org-todo-keywords~).
 - ~org-kanban-modern-column-width~ — fixed column width in characters.
+- ~org-kanban-modern-done-within-days~ — only show done cards closed within
+  this many days (default 7; ~nil~ shows all).  Done cards with no =CLOSED=
+  timestamp are always shown.  Adjust live with =t d=, or click the
+  =done ≤Nd ✕= header chip to show all done cards.
+
+Active (non-done) cards are always shown regardless of this setting.
 
 * License
 
