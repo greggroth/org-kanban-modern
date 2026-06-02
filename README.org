@@ -89,32 +89,54 @@ git clone https://github.com/greggroth/org-kanban-modern.git ~/code/org-kanban-m
 
 * Org configuration
 
-The board reads your existing Org files, so no special setup is required to
-get started.  A couple of standard Org settings make it nicer:
+This package is deliberately a *view* over Org: it reuses the standard
+=org-mode= and =org-agenda= settings you already have rather than inventing its
+own.  No special setup is required to get started, but the board honors the
+settings below, so customizing them in Org is reflected here too.
 
-- *Record when a TODO is marked done.*  The done-date filter
-  (~org-kanban-modern-done-within-days~) keeps recently-completed cards on the
-  board and hides older ones.  It works by reading each done heading's =CLOSED=
-  timestamp, which Org only writes when you ask it to.  Enable that with:
+| Org / org-agenda setting                  | What it drives on the board                         | Required?                  |
+|-------------------------------------------+-----------------------------------------------------+----------------------------|
+| ~org-todo-keywords~                       | Default columns                                     | No (used via ~columns~)    |
+| ~org-agenda-files~                        | Default files scanned for cards                     | No (used via ~files~)      |
+| ~org-log-done~                            | Writes the =CLOSED= timestamp the done filter reads | For the recently-done view |
+| ~org-priority-faces~ / ~org-priority~     | Priority cookie colors                              | No                         |
+| ~org-default-priority~                    | Where unprioritized cards sort (normally =[#B]=)    | No                         |
+| ~org-tag-faces~                           | Tag chip colors                                     | No                         |
+| ~org-scheduled~ / ~org-upcoming-deadline~ | =SCHEDULED= / =DEADLINE= line colors                | No                         |
 
-  #+begin_src emacs-lisp
-  (setq org-log-done 'time)   ; or 'note to also prompt for a closing note
-  #+end_src
+Moving a card runs ~org-todo~ on the source heading, so its TODO-state logging
+and note prompts (e.g. ~org-log-into-drawer~, per-keyword logging) are honored
+just as in a normal Org buffer.
 
-  Without this, done headings have no =CLOSED= timestamp; such cards are always
-  shown (their age is unknown), so the day-window filter effectively can't hide
-  them.  Headings closed before you enabled logging are likewise always shown.
+** Recording when a TODO is marked done
 
-- *Priorities and faces.*  Card priority coloring reuses Org's own
-  ~org-priority-faces~ (falling back to the ~org-priority~ face), the same
-  source =org-agenda= uses — so anything you already customize there is
-  reflected on the board.  ~org-default-priority~ (normally =[#B]=) controls
-  where unprioritized cards land in the default priority sort.
+The done-date filter (~org-kanban-modern-done-within-days~) keeps
+recently-completed cards on the board and hides older ones.  It reads each done
+heading's =CLOSED= timestamp, which Org only writes when you ask it to:
 
-  Planning timestamps reuse Org's planning faces too: the
-  ~org-kanban-modern-scheduled~ face inherits ~org-scheduled~ and
-  ~org-kanban-modern-deadline~ inherits ~org-upcoming-deadline~, so they track
-  your theme like the rest of the board.
+#+begin_src emacs-lisp
+(setq org-log-done 'time)   ; or 'note to also prompt for a closing note
+#+end_src
+
+Without this, done headings have no =CLOSED= timestamp; such cards are always
+shown (their age is unknown), so the day-window filter effectively can't hide
+them.  Headings closed before you enabled logging are likewise always shown.
+
+** Priorities, tags, and faces (inherited from Org)
+
+The board pulls its colors straight from Org, so whatever you already customize
+shows up here:
+
+- *Priority colors* reuse ~org-priority-faces~ (falling back to the
+  ~org-priority~ face), the same source =org-agenda= uses.
+  ~org-default-priority~ (normally =[#B]=) controls where unprioritized cards
+  land in the default priority sort.
+- *Tag colors* reuse ~org-tag-faces~ on every tag chip; turn this off with
+  ~org-kanban-modern-use-tag-faces~.
+- *Planning colors* reuse Org's planning faces: ~org-kanban-modern-scheduled~
+  inherits ~org-scheduled~ and ~org-kanban-modern-deadline~ inherits
+  ~org-upcoming-deadline~, so timestamps track your theme like the rest of the
+  board.
 
 * Usage
 
