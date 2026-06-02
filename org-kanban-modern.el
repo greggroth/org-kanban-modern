@@ -707,10 +707,10 @@ set), or nil when planning display is disabled or neither is set."
 
 (defvar org-kanban-modern--tag-chip-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map [mouse-3] #'org-kanban-modern--mouse-exclude-click)
+    (define-key map [S-mouse-1] #'org-kanban-modern--mouse-exclude-click)
     map)
-  "Keymap placed on card tag chips so mouse-3 toggles the exclude filter.
-Mouse-1 is intentionally left to the mode map's selection handler.")
+  "Keymap placed on card tag chips so S-mouse-1 toggles the exclude filter.
+Plain mouse-1 is intentionally left to the mode map's selection handler.")
 
 (defun org-kanban-modern--tags-string (card content-width)
   "Return a propertized, clickable tag string for CARD.
@@ -726,7 +726,7 @@ The result is truncated to CONTENT-WIDTH display columns."
                           'org-kanban-modern-tag tag
                           'mouse-face 'org-kanban-modern-tag-hover
                           'keymap org-kanban-modern--tag-chip-keymap
-                          'help-echo "mouse-1: include this tag, mouse-3: exclude it")
+                          'help-echo "mouse-1: include this tag, S-mouse-1: exclude it")
               chips)))
     (let ((s (mapconcat #'identity (nreverse chips) " ")))
       (if (> (string-width s) content-width)
@@ -1006,8 +1006,8 @@ anywhere else on the card selects it."
 
 (defun org-kanban-modern--mouse-exclude-click (event)
   "Toggle the tag under EVENT in the exclude filter.
-Bound to mouse-3 on tag chips only (via a chip-local keymap), so a
-right-click elsewhere in the buffer keeps its default behaviour."
+Bound to S-mouse-1 on tag chips only (via a chip-local keymap), so a
+shift-click elsewhere in the buffer keeps its default behaviour."
   (interactive "e")
   (let* ((pos (posn-point (event-start event)))
          (tag (and pos (get-text-property pos 'org-kanban-modern-tag))))

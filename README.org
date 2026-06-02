@@ -24,7 +24,7 @@ configurable set of Org files.  The board is inspired by the visual polish of
   source heading and the board refreshes.
 - *Tags on cards, elfeed-style filtering.*  Tags appear as clickable chips that
   highlight on hover.  Left-click a tag on a card to *include* it (cards must
-  carry every included tag); right-click (=mouse-3=) to *exclude* it (cards
+  carry every included tag); shift-click (=S-mouse-1=) to *exclude* it (cards
   carrying it are hidden).  A tag is only ever in one of the two filters.  Active
   filters appear as chips in the header line — =+#tag= for includes and =-#tag=
   for excludes — click one to remove it.
@@ -130,7 +130,7 @@ repeaters, inline markup, and recently-closed cards.
 |-----------------------+-------------------------------------------|
 | =mouse-1= (card)      | Select card                               |
 | =mouse-1= (card tag)  | Toggle that tag in the *include* filter   |
-| =mouse-3= (card tag)  | Toggle that tag in the *exclude* filter   |
+| =S-mouse-1= (card tag) | Toggle that tag in the *exclude* filter  |
 | =mouse-1= (header tag) | Remove that tag from the filter          |
 | =n= / =p=             | Select next / previous card in column     |
 | =f= / =b=             | Move selection to next / previous column  |
