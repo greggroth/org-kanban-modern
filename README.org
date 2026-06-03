@@ -197,9 +197,10 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
   interleaves with explicit =[#B]= cards.  Equal priorities keep document
   order.  ~document~ keeps source order.  May also be a predicate of two cards
   (passed to ~sort~).
-- ~org-kanban-modern-column-width~ — fixed column width in characters.
+- ~org-kanban-modern-column-width~ — fixed column width in characters.  Must be
+  at least 3 so the selection bar still leaves room for card content.
 - ~org-kanban-modern-column-gap~ — blank columns between board columns
-  (default 2).
+  (default 2, must be non-negative).
 - ~org-kanban-modern-buffer-name~ — name of the board buffer (default
   ~*Kanban*~).
 - ~org-kanban-modern-render-markup~ — render Org inline markup in card

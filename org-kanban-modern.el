@@ -53,6 +53,40 @@
   :group 'org
   :prefix "org-kanban-modern-")
 
+(defconst org-kanban-modern--bar-width 2
+  "Columns reserved at the left of each card line for the selection bar.")
+
+(defun org-kanban-modern--validate-column-width (width)
+  "Return WIDTH after validating `org-kanban-modern-column-width'."
+  (unless (and (integerp width) (> width org-kanban-modern--bar-width))
+    (user-error
+     "`org-kanban-modern-column-width' must be an integer greater than %d (got %S)"
+     org-kanban-modern--bar-width width))
+  width)
+
+(defun org-kanban-modern--validate-column-gap (gap)
+  "Return GAP after validating `org-kanban-modern-column-gap'."
+  (unless (and (integerp gap) (>= gap 0))
+    (user-error
+     "`org-kanban-modern-column-gap' must be a non-negative integer (got %S)"
+     gap))
+  gap)
+
+(defun org-kanban-modern--set-column-width (symbol value)
+  "Set SYMBOL to VALUE after validating the column width."
+  (set-default symbol (org-kanban-modern--validate-column-width value)))
+
+(defun org-kanban-modern--set-column-gap (symbol value)
+  "Set SYMBOL to VALUE after validating the column gap."
+  (set-default symbol (org-kanban-modern--validate-column-gap value)))
+
+(defun org-kanban-modern--validate-dimensions ()
+  "Validate board dimensions and return a cons of (WIDTH . GAP)."
+  (cons (org-kanban-modern--validate-column-width
+         org-kanban-modern-column-width)
+        (org-kanban-modern--validate-column-gap
+         org-kanban-modern-column-gap)))
+
 (defcustom org-kanban-modern-files nil
   "List of Org files to collect cards from.
 When nil, the board uses `org-agenda-files'.  The value may be any
@@ -89,13 +123,17 @@ Possible values:
   :group 'org-kanban-modern)
 
 (defcustom org-kanban-modern-column-width 26
-  "Width, in characters, of each board column."
-  :type 'integer
+  "Width, in characters, of each board column.
+The value must be greater than `org-kanban-modern--bar-width' so at
+least one character remains for card content."
+  :type 'natnum
+  :set #'org-kanban-modern--set-column-width
   :group 'org-kanban-modern)
 
 (defcustom org-kanban-modern-column-gap 2
   "Number of blank columns between board columns."
-  :type 'integer
+  :type 'natnum
+  :set #'org-kanban-modern--set-column-gap
   :group 'org-kanban-modern)
 
 (defcustom org-kanban-modern-buffer-name "*Kanban*"
@@ -579,6 +617,8 @@ The result is ordered according to `org-kanban-modern-sort'."
 (defun org-kanban-modern--pad (str width)
   "Return STR truncated or space-padded to exactly WIDTH display columns.
 Text properties on STR are preserved."
+  (unless (and (integerp width) (>= width 0))
+    (user-error "Pad width must be a non-negative integer (got %S)" width))
   (let ((w (string-width str)))
     (cond ((= w width) str)
           ((> w width) (truncate-string-to-width str width nil nil t))
@@ -586,6 +626,8 @@ Text properties on STR are preserved."
 
 (defun org-kanban-modern--wrap (str width)
   "Wrap STR into a list of lines, each at most WIDTH display columns."
+  (unless (and (integerp width) (> width 0))
+    (user-error "Wrap width must be a positive integer (got %S)" width))
   (if (<= (string-width str) width)
       (list str)
     (let ((words (split-string str " " t))
@@ -599,9 +641,12 @@ Text properties on STR are preserved."
             ;; A single word longer than WIDTH: hard-break it.
             (let ((rest word))
               (while (> (string-width rest) width)
-                (let ((head (truncate-string-to-width rest width)))
+                (let* ((head (truncate-string-to-width rest width))
+                       (advance (max 1 (length head))))
+                  (when (string-empty-p head)
+                    (setq head (substring rest 0 advance)))
                   (push head lines)
-                  (setq rest (substring rest (length head)))))
+                  (setq rest (substring rest advance))))
               (setq cur rest))))
          ((<= (string-width (concat cur " " word)) width)
           (setq cur (concat cur " " word)))
@@ -611,9 +656,6 @@ Text properties on STR are preserved."
       (nreverse lines))))
 
 ;;;; Card rendering
-
-(defconst org-kanban-modern--bar-width 2
-  "Columns reserved at the left of each card line for the selection bar.")
 
 (defconst org-kanban-modern--markup-strip-props
   '(keymap nil help-echo nil mouse-face nil htmlize-link nil org-emphasis nil
@@ -883,9 +925,10 @@ A blank separator line is inserted after each card."
 (defun org-kanban-modern--render ()
   "Redraw the board from `org-kanban-modern--visible'."
   (let* ((inhibit-read-only t)
+         (dimensions (org-kanban-modern--validate-dimensions))
          (columns (org-kanban-modern--columns))
-         (width org-kanban-modern-column-width)
-         (gap (make-string org-kanban-modern-column-gap ?\s))
+         (width (car dimensions))
+         (gap (make-string (cdr dimensions) ?\s))
          (by-column (mapcar (lambda (col)
                               (cons col (org-kanban-modern--cards-for-column
                                          col org-kanban-modern--visible)))
@@ -1426,6 +1469,7 @@ Re-collects the board so the new window takes effect."
 (defun org-kanban-modern-refresh ()
   "Re-collect cards from the source files and redraw the board."
   (interactive)
+  (org-kanban-modern--validate-dimensions)
   (setq org-kanban-modern--cards (org-kanban-modern--collect))
   (org-kanban-modern--apply-filters))
 

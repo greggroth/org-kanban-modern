@@ -73,6 +73,37 @@
     (should (cl-every (lambda (l) (<= (string-width l) 6)) lines))
     (should (equal (apply #'concat lines) "supercalifragilistic"))))
 
+(ert-deftest org-kanban-modern-test-wrap-invalid-width ()
+  (should-error (org-kanban-modern--wrap "nope" 0) :type 'user-error)
+  (should-error (org-kanban-modern--wrap "nope" -1) :type 'user-error))
+
+(ert-deftest org-kanban-modern-test-render-invalid-column-width ()
+  (with-temp-buffer
+    (let ((org-kanban-modern-column-width org-kanban-modern--bar-width)
+          (org-kanban-modern-column-gap 0))
+      (should-error (org-kanban-modern--render) :type 'user-error))))
+
+(ert-deftest org-kanban-modern-test-render-invalid-column-gap ()
+  (with-temp-buffer
+    (let ((org-kanban-modern-column-width (1+ org-kanban-modern--bar-width))
+          (org-kanban-modern-column-gap -1))
+      (should-error (org-kanban-modern--render) :type 'user-error))))
+
+(ert-deftest org-kanban-modern-test-render-minimum-column-width ()
+  (let* ((width (1+ org-kanban-modern--bar-width))
+         (card (org-kanban-modern-card-create
+                :id "small" :title "abc" :todo "TODO")))
+    (with-temp-buffer
+      (let ((org-kanban-modern-column-width width)
+            (org-kanban-modern-column-gap 0)
+            (org-kanban-modern-columns '("TODO"))
+            (org-kanban-modern--cards (list card))
+            (org-kanban-modern--visible (list card))
+            (org-kanban-modern--selected-id "small"))
+        (org-kanban-modern--render)
+        (dolist (line (split-string (buffer-string) "\n" t))
+          (should (<= (string-width line) width)))))))
+
 ;;;; Filtering helpers
 
 (defun org-kanban-modern-test--card (title todo tags priority)
