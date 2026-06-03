@@ -161,9 +161,10 @@ repeaters, inline markup, and recently-closed cards.
 | =TAB= / =S-TAB=          | Move selection forward / backward column    |
 | =M-<right>= / =>=        | Move card to next column (persisted)        |
 | =M-<left>=  / =<=        | Move card to previous column (persisted)    |
-| =s= / =C-c C-t=          | Set the selected card's TODO state          |
-| =,= / =C-c ,=            | Set the selected card's priority            |
-| =:= / =C-c C-q=          | Set the selected card's tags                |
+| =s=                    | Set the selected card's TODO state          |
+| =,=                    | Set the selected card's priority            |
+| =:=                    | Set the selected card's tags                |
+| c                    | Run =org-capture=                           |
 | =RET= / =o=              | Visit card's heading in its Org file        |
 | =double-mouse-1=       | Visit card's heading in its Org file        |
 | =t t= / =t +=            | Toggle a tag in the *include* filter (prompt) |
