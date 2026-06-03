@@ -1,20 +1,20 @@
-#+title: org-kanban-modern — demo board
+#+title: org-agenda-kanban — demo board
 #+author: Gregg Rothmeier
 #+todo: TODO STARTED WAITING | DONE CANCELLED
 
-# A representative board for screenshots and trying out org-kanban-modern.
+# A representative board for screenshots and trying out org-agenda-kanban.
 #
 # Quick start — open this file, then evaluate:
 #
-#   (require 'org-kanban-modern)
-#   (setq org-kanban-modern-files   (list (buffer-file-name)))
-#   (setq org-kanban-modern-columns '("TODO" "STARTED" "WAITING"
+#   (require 'org-agenda-kanban)
+#   (setq org-agenda-kanban-files   (list (buffer-file-name)))
+#   (setq org-agenda-kanban-columns '("TODO" "STARTED" "WAITING"
 #                                      "DONE" "CANCELLED"))
-#   (org-kanban-modern)
+#   (org-agenda-kanban)
 #
 # Columns come from the GLOBAL `org-todo-keywords' (or
-# `org-kanban-modern-columns'); the file-local `#+todo:' above only affects
-# this buffer, so set `org-kanban-modern-columns' as shown for matching
+# `org-agenda-kanban-columns'); the file-local `#+todo:' above only affects
+# this buffer, so set `org-agenda-kanban-columns' as shown for matching
 # columns.  For live use, also `(setq org-log-done 'time)' so newly-finished
 # cards get a CLOSED stamp and stay visible under the done-date filter.
 #
