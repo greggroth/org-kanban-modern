@@ -1,4 +1,4 @@
-#+title: org-kanban-modern
+#+title: org-agenda-kanban
 #+author: Gregg Rothmeier
 #+options: toc:nil num:nil
 
@@ -14,7 +14,7 @@ configurable set of Org files.  The board is inspired by the visual polish of
 - *Columns from your workflow.*  Defaults to the keywords in
   ~org-todo-keywords~; fully configurable.
 - *Live data.*  Cards are collected from files or directories in
-  ~org-kanban-modern-files~ (defaults to ~org-agenda-files~).
+  ~org-agenda-kanban-files~ (defaults to ~org-agenda-files~).
 - *Click to select.*  Click a card to select it; the selection is shown with a
   distinct highlight.
 - *Keyboard to move.*  Move the selected card between columns; the change is
@@ -29,24 +29,24 @@ configurable set of Org files.  The board is inspired by the visual polish of
   filters appear as chips in the header line — =+#tag= for includes and =-#tag=
   for excludes — click one to remove it.  Tag chips honor Org's
   ~org-tag-faces~, so per-tag colors show through on the board; disable with
-  ~org-kanban-modern-use-tag-faces~.
+  ~org-agenda-kanban-use-tag-faces~.
 - *Priority filtering.*  Filter by effective Org priority: unprioritized cards
   match ~org-default-priority~ (normally =[#B]=), just like sorting and
   =org-agenda=.
 - *Priority coloring.*  The =[#X]= priority cookie on each card is colored
   using your configured ~org-priority-faces~ — the same source =org-agenda=
-  uses (see ~org-kanban-modern-priority-style~).
+  uses (see ~org-agenda-kanban-priority-style~).
 - *Planning timestamps.*  A card shows its =SCHEDULED= and =DEADLINE=
   timestamps when set, each on its own line beneath the title, with any
   repeater (e.g. =+1w=) preserved.  The redundant day-of-week name is
   dropped by default so timestamps fit the card width; keep it with
-  ~org-kanban-modern-planning-compact~.  Toggle the lines with
-  ~org-kanban-modern-show-planning~ and set the glyphs with
-  ~org-kanban-modern-scheduled-glyph~ / ~org-kanban-modern-deadline-glyph~.
+  ~org-agenda-kanban-planning-compact~.  Toggle the lines with
+  ~org-agenda-kanban-show-planning~ and set the glyphs with
+  ~org-agenda-kanban-scheduled-glyph~ / ~org-agenda-kanban-deadline-glyph~.
 - *Sorting.*  Within each column, cards are sorted by Org priority (highest
   first) by default.  Like ~org-agenda~, an unprioritized card is treated as
   ~org-default-priority~ (normally =[#B]=), so it interleaves with explicit
-  =[#B]= cards.  Set ~org-kanban-modern-sort~ to ~document~ for source order,
+  =[#B]= cards.  Set ~org-agenda-kanban-sort~ to ~document~ for source order,
   or to a predicate for a custom order.
 
 * Screenshots
@@ -61,31 +61,31 @@ configurable set of Org files.  The board is inspired by the visual polish of
 
 * Installation
 
-The package lives at [[https://github.com/greggroth/org-kanban-modern][github.com/greggroth/org-kanban-modern]].
+The package lives at [[https://github.com/greggroth/org-agenda-kanban][github.com/greggroth/org-agenda-kanban]].
 
 ** With ~use-package~ and ~:vc~ (Emacs 30+)
 
 #+begin_src emacs-lisp
-(use-package org-kanban-modern
-  :vc (:url "https://github.com/greggroth/org-kanban-modern" :rev :newest)
-  :commands (org-kanban-modern))
+(use-package org-agenda-kanban
+  :vc (:url "https://github.com/greggroth/org-agenda-kanban" :rev :newest)
+  :commands (org-agenda-kanban))
 #+end_src
 
 ** With ~package-vc-install~ (Emacs 29+)
 
 #+begin_src emacs-lisp
-(package-vc-install "https://github.com/greggroth/org-kanban-modern")
+(package-vc-install "https://github.com/greggroth/org-agenda-kanban")
 #+end_src
 
 ** Manual clone (any supported Emacs, 28.1+)
 
 #+begin_src sh
-git clone https://github.com/greggroth/org-kanban-modern.git ~/code/org-kanban-modern
+git clone https://github.com/greggroth/org-agenda-kanban.git ~/code/org-agenda-kanban
 #+end_src
 
 #+begin_src emacs-lisp
-(add-to-list 'load-path "~/code/org-kanban-modern")
-(require 'org-kanban-modern)
+(add-to-list 'load-path "~/code/org-agenda-kanban")
+(require 'org-agenda-kanban)
 #+end_src
 
 * Org configuration
@@ -111,7 +111,7 @@ just as in a normal Org buffer.
 
 ** Recording when a TODO is marked done
 
-The done-date filter (~org-kanban-modern-done-within-days~) keeps
+The done-date filter (~org-agenda-kanban-done-within-days~) keeps
 recently-completed cards on the board and hides older ones.  It reads each done
 heading's =CLOSED= timestamp, which Org only writes when you ask it to:
 
@@ -133,19 +133,19 @@ shows up here:
   ~org-default-priority~ (normally =[#B]=) controls where unprioritized cards
   land in the default priority sort and which priority filter they match.
 - *Tag colors* reuse ~org-tag-faces~ on every tag chip; turn this off with
-  ~org-kanban-modern-use-tag-faces~.
-- *Planning colors* reuse Org's planning faces: ~org-kanban-modern-scheduled~
-  inherits ~org-scheduled~ and ~org-kanban-modern-deadline~ inherits
+  ~org-agenda-kanban-use-tag-faces~.
+- *Planning colors* reuse Org's planning faces: ~org-agenda-kanban-scheduled~
+  inherits ~org-scheduled~ and ~org-agenda-kanban-deadline~ inherits
   ~org-upcoming-deadline~, so timestamps track your theme like the rest of the
   board.
 
 * Usage
 
-Run =M-x org-kanban-modern= to open the board.
+Run =M-x org-agenda-kanban= to open the board.
 
 A ready-made sample board lives at [[file:examples/demo.org][examples/demo.org]] — open it and follow
-the comment header (it sets ~org-kanban-modern-files~ and
-~org-kanban-modern-columns~ to that file) to see every feature at once: all
+the comment header (it sets ~org-agenda-kanban-files~ and
+~org-agenda-kanban-columns~ to that file) to see every feature at once: all
 five columns, priorities, tag chips, =SCHEDULED= / =DEADLINE= lines with
 repeaters, inline markup, and recently-closed cards.
 
@@ -185,56 +185,56 @@ matching Org Agenda.  Save the Org buffer explicitly when ready.
 
 * Customization
 
-See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
+See =M-x customize-group RET org-agenda-kanban RET=.  Key variables:
 
-- ~org-kanban-modern-files~ — files or directories to scan (default
+- ~org-agenda-kanban-files~ — files or directories to scan (default
   ~org-agenda-files~).
-- ~org-kanban-modern-columns~ — column keywords (default from
+- ~org-agenda-kanban-columns~ — column keywords (default from
   ~org-todo-keywords~).
-- ~org-kanban-modern-sort~ — order of cards within each column.  ~priority~
+- ~org-agenda-kanban-sort~ — order of cards within each column.  ~priority~
   (default) sorts highest Org priority first; like ~org-agenda~, an
   unprioritized card is treated as ~org-default-priority~ (normally =[#B]=) and
   interleaves with explicit =[#B]= cards.  Equal priorities keep document
   order.  ~document~ keeps source order.  May also be a predicate of two cards
   (passed to ~sort~).
-- ~org-kanban-modern-column-width~ — fixed column width in characters.  Must be
+- ~org-agenda-kanban-column-width~ — fixed column width in characters.  Must be
   at least 3 so the selection bar still leaves room for card content.
-- ~org-kanban-modern-column-gap~ — blank columns between board columns
+- ~org-agenda-kanban-column-gap~ — blank columns between board columns
   (default 2, must be non-negative).
-- ~org-kanban-modern-buffer-name~ — name of the board buffer (default
+- ~org-agenda-kanban-buffer-name~ — name of the board buffer (default
   ~*Kanban*~).
-- ~org-kanban-modern-render-markup~ — render Org inline markup in card
+- ~org-agenda-kanban-render-markup~ — render Org inline markup in card
   titles (default ~t~).  Emphasis (=*bold*=, =/italic/=, =~code~=, …) is
   shown with its face and markers hidden, and links =[[target][desc]]= are
   shown as their description.  Set to ~nil~ to display raw Org text.
-- ~org-kanban-modern-done-within-days~ — only show done cards closed within
+- ~org-agenda-kanban-done-within-days~ — only show done cards closed within
   this many days (default 7; ~nil~ shows all).  Done cards with no =CLOSED=
   timestamp are always shown, and active (non-done) cards are always shown
   regardless of this setting.  See [[*Org configuration][Org configuration]] for how to record the
   =CLOSED= timestamp.  Adjust live with =t d=, or click the =done <=Nd x=
   header chip to show all done cards.
-- ~org-kanban-modern-priority-style~ — how a card reflects its Org priority
+- ~org-agenda-kanban-priority-style~ — how a card reflects its Org priority
   (default ~cookie~).  Colors come from Org's own ~org-priority-faces~ (with
   the ~org-priority~ face as fallback), the same source =org-agenda= uses, so
   priorities look consistent across Org.  Choices: ~cookie~ (color the =[#X]=
   cookie — the default) or ~nil~ (no priority coloring).
-- ~org-kanban-modern-show-planning~ — show each card's =SCHEDULED= and
+- ~org-agenda-kanban-show-planning~ — show each card's =SCHEDULED= and
   =DEADLINE= timestamps when set (default ~t~).  Each is rendered on its own
   line beneath the title with any repeater preserved.  Set to ~nil~ to hide
   them.
-- ~org-kanban-modern-use-tag-faces~ — color tag chips using Org's
+- ~org-agenda-kanban-use-tag-faces~ — color tag chips using Org's
   ~org-tag-faces~ (default ~t~).  Each tag's color is layered onto the chip
   while the package's state decoration is preserved (included tags stay
   inverse, excluded tags keep their strike-through), and a fixed-pitch family
   is forced so a per-tag face cannot break the card grid.  Set to ~nil~ to use
   the package faces only.
-- ~org-kanban-modern-header-remove-glyph~ /
-  ~org-kanban-modern-header-done-window-prefix~ — text used in header filter
+- ~org-agenda-kanban-header-remove-glyph~ /
+  ~org-agenda-kanban-header-done-window-prefix~ — text used in header filter
   chips for the remove marker (default ="x"=) and done-window comparison
   prefix (default ="<="=).  These default to ASCII for portable fixed-pitch
   rendering; set them to Unicode values such as ="✕"= / ="≤"= if your font
   supports them with matching metrics.
-- ~org-kanban-modern-scheduled-glyph~ / ~org-kanban-modern-deadline-glyph~ —
+- ~org-agenda-kanban-scheduled-glyph~ / ~org-agenda-kanban-deadline-glyph~ —
   prefixes shown before the scheduled (default ="S "=) and deadline (default
   ="D "=) timestamps.  These default to ASCII labels so their width is
   deterministic: cards are a fixed-pitch monospace grid, and a non-ASCII glyph
@@ -242,11 +242,11 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
   advance does not align to the grid (misaligning the timestamp).  You may set
   a Unicode glyph (e.g. ="◷ "= / ="⚑ "=) only if it is present in your
   fixed-pitch font with matching metrics.
-- ~org-kanban-modern-planning-compact~ — when non-nil (the default), omit the
+- ~org-agenda-kanban-planning-compact~ — when non-nil (the default), omit the
   day-of-week name from planning timestamps (e.g. =2026-06-03 11:00 +1w=
   instead of =2026-06-03 Wed 11:00 +1w=) so they fit the card width.  Set to
   ~nil~ to keep the weekday name.
-- ~org-kanban-modern-line-spacing~ — buffer-local ~line-spacing~ for the board
+- ~org-agenda-kanban-line-spacing~ — buffer-local ~line-spacing~ for the board
   (default ~0~).  Cards are solid colored tiles; if your frame or theme adds
   inter-line spacing, the card background does not fill it and faint stripes
   appear between a card's wrapped lines.  ~0~ removes that space so tiles read
