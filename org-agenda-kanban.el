@@ -1092,6 +1092,15 @@ anywhere else on the card selects it."
      (tag (org-agenda-kanban-include-tag tag))
      (id (org-agenda-kanban--select id)))))
 
+(defun org-agenda-kanban--isearch-select ()
+  "Select the card under point when `isearch' exits.
+Added to `isearch-mode-end-hook' buffer-locally so that landing on a
+search hit inside a card moves the kanban selection to that card."
+  (unless isearch-mode-end-hook-quit
+    (let ((id (get-text-property (point) 'org-agenda-kanban-card-id)))
+      (when (and id (not (equal id org-agenda-kanban--selected-id)))
+        (org-agenda-kanban--select id)))))
+
 (defun org-agenda-kanban--mouse-exclude-click (event)
   "Toggle the tag under EVENT in the exclude filter.
 Bound to S-mouse-1 on tag chips only (via a chip-local keymap), so a
@@ -1486,6 +1495,7 @@ Re-collects the board so the new window takes effect."
     (setq-local org-agenda-kanban--done-window
                 org-agenda-kanban-done-within-days))
   (buffer-face-set 'fixed-pitch)
+  (add-hook 'isearch-mode-end-hook #'org-agenda-kanban--isearch-select nil t)
   (setq header-line-format '(:eval (org-agenda-kanban--header-line))))
 
 (defun org-agenda-kanban-refresh ()
