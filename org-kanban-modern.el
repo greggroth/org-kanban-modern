@@ -32,7 +32,7 @@
 ;; `org-agenda-files').
 ;;
 ;; Cards are selected by clicking and moved between columns with the keyboard;
-;; moving a card writes the new TODO keyword back to the source file via
+;; moving a card writes the new TODO keyword back to the source buffer via
 ;; `org-todo'.  Tags are shown on cards as clickable chips and can be used to
 ;; filter the board (elfeed-style, combining with AND).  Cards can also be
 ;; filtered by priority.
@@ -1039,7 +1039,7 @@ shift-click elsewhere in the buffer keeps its default behaviour."
          (tag (and pos (get-text-property pos 'org-kanban-modern-tag))))
     (when tag (org-kanban-modern-exclude-tag tag))))
 
-;;;; Movement (persisted to the source file)
+;;;; Movement (written to the source buffer)
 
 (defun org-kanban-modern--heading-matches-p (pos card)
   "Return non-nil if the heading at POS still matches CARD's title."
@@ -1087,35 +1087,22 @@ stable card ID."
                      (t (org-kanban-modern--find-heading card)))))
            (and pos (cons buf pos))))))))
 
-(defun org-kanban-modern--save-source-buffer-after-edit (was-modified)
-  "Save current source buffer unless WAS-MODIFIED was non-nil.
-WAS-MODIFIED means the buffer had unsaved changes before a board edit.
-When it is non-nil, leave the buffer unsaved so unrelated edits are not
-persisted without the user's action."
-  (if was-modified
-      (message "Source buffer %s already has unsaved edits; not saving automatically"
-               (buffer-name))
-    (save-buffer)))
-
 (defun org-kanban-modern--set-todo (card target)
   "Set CARD's heading to the TODO keyword TARGET in its source file.
 The change is written through `org-todo' so logging and notes are
-honored.  The source buffer is saved when it had no unsaved edits before
-the board change; otherwise it is left modified so unrelated edits are
-not silently persisted."
+honored.  Like Org Agenda commands, this does not save the source
+buffer; save it explicitly when ready."
   (let ((loc (org-kanban-modern--locate card)))
     (unless loc
       (user-error "Cannot locate heading for %S; refresh the board"
                   (org-kanban-modern-card-title card)))
     (with-current-buffer (car loc)
-      (let ((was-modified (buffer-modified-p)))
-        (org-with-wide-buffer
-         (goto-char (cdr loc))
-         (org-todo target))
-        (org-kanban-modern--save-source-buffer-after-edit was-modified)))))
+      (org-with-wide-buffer
+       (goto-char (cdr loc))
+       (org-todo target)))))
 
 (defun org-kanban-modern--move (delta)
-  "Move the selected card DELTA columns and persist the new TODO state."
+  "Move the selected card DELTA columns and edit the source TODO state."
   (let* ((card (org-kanban-modern--selected-card))
          (cols (org-kanban-modern--columns)))
     (unless card (user-error "No card selected"))
@@ -1146,10 +1133,9 @@ not silently persisted."
   "Run ACTION on the selected card's heading, then refresh the board.
 ACTION is a function of no arguments called with point on the heading
 in the (widened) source buffer; it is expected to edit the entry.  The
-source buffer is saved when it had no unsaved edits before the board
-change; otherwise it is left modified.  The board is then re-collected,
-preserving the selection by stable ID.  Returns the card that was
-edited."
+source buffer is not saved automatically, matching Org Agenda edit
+commands.  The board is then re-collected, preserving the selection by
+stable ID.  Returns the card that was edited."
   (let ((card (org-kanban-modern--selected-card)))
     (unless card (user-error "No card selected"))
     (let ((loc (org-kanban-modern--locate card)))
@@ -1157,11 +1143,9 @@ edited."
         (user-error "Cannot locate heading for %S; refresh the board"
                     (org-kanban-modern-card-title card)))
       (with-current-buffer (car loc)
-        (let ((was-modified (buffer-modified-p)))
-          (org-with-wide-buffer
-           (goto-char (cdr loc))
-           (funcall action))
-          (org-kanban-modern--save-source-buffer-after-edit was-modified))))
+        (org-with-wide-buffer
+         (goto-char (cdr loc))
+         (funcall action))))
     ;; Re-collect so the card carries its new state/priority/tags and a fresh
     ;; marker; the ID is stable across the edit, so the selection survives.
     (setq org-kanban-modern--cards (org-kanban-modern--collect))
@@ -1171,8 +1155,8 @@ edited."
 (defun org-kanban-modern-set-todo ()
   "Set the TODO state of the selected card via the `org-todo' menu.
 Mirrors \\[org-todo] in an Org buffer: the change is written back to the
-source buffer (logging and notes honored), saved when that buffer was
-clean before the edit, and the board is refreshed."
+source buffer (logging and notes honored), and the board is refreshed.
+Save the source buffer explicitly when ready."
   (interactive)
   (let ((card (org-kanban-modern--edit-at-card
                (lambda () (call-interactively #'org-todo)))))
@@ -1180,8 +1164,8 @@ clean before the edit, and the board is refreshed."
 
 (defun org-kanban-modern-set-priority ()
   "Set the priority of the selected card via `org-priority'.
-The change is written back to the source buffer, saved when that buffer
-was clean before the edit, and the board refreshed."
+The change is written back to the source buffer and the board refreshed.
+Save the source buffer explicitly when ready."
   (interactive)
   (let ((card (org-kanban-modern--edit-at-card
                (lambda () (call-interactively #'org-priority)))))
@@ -1189,8 +1173,8 @@ was clean before the edit, and the board refreshed."
 
 (defun org-kanban-modern-set-tags ()
   "Set the tags of the selected card via `org-set-tags-command'.
-The change is written back to the source buffer, saved when that buffer
-was clean before the edit, and the board refreshed."
+The change is written back to the source buffer and the board refreshed.
+Save the source buffer explicitly when ready."
   (interactive)
   (let ((card (org-kanban-modern--edit-at-card
                (lambda () (call-interactively #'org-set-tags-command)))))

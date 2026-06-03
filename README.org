@@ -159,8 +159,8 @@ repeaters, inline markup, and recently-closed cards.
 | =n= / =p=                | Select next / previous card in column       |
 | =f= / =b=                | Move selection to next / previous column    |
 | =TAB= / =S-TAB=          | Move selection forward / backward column    |
-| =M-<right>= / =>=        | Move card to next column (persisted)        |
-| =M-<left>=  / =<=        | Move card to previous column (persisted)    |
+| =M-<right>= / =>=        | Move card to next column                    |
+| =M-<left>=  / =<=        | Move card to previous column                |
 | =s=                    | Set the selected card's TODO state          |
 | =,=                    | Set the selected card's priority            |
 | =:=                    | Set the selected card's tags                |
@@ -179,10 +179,8 @@ repeaters, inline markup, and recently-closed cards.
 With a prefix argument (=C-u RET= / =C-u o=), the card's heading opens in
 another window instead of the current one.
 
-Board edits use Org's normal commands and are saved immediately when the
-source Org buffer was clean before the edit.  If that source buffer already
-has unsaved edits, the board change is left unsaved too so unrelated edits are
-not silently written to disk; save the Org buffer explicitly when ready.
+Board edits use Org's normal commands and leave the source Org buffer unsaved,
+matching Org Agenda.  Save the Org buffer explicitly when ready.
 
 * Customization
 
