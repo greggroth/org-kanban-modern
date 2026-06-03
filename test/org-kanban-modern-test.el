@@ -333,6 +333,13 @@ order."
                    '(choice (const :tag "Color the priority cookie" cookie)
                             (const :tag "No priority color" nil))))))
 
+(ert-deftest org-kanban-modern-test-files-custom-type-includes-directories ()
+  "The files defcustom accepts both files and directories."
+  (should (equal (get 'org-kanban-modern-files 'custom-type)
+                '(choice (const :tag "Use `org-agenda-files'" nil)
+                         (repeat (choice (file :tag "File")
+                                         (directory :tag "Directory")))))))
+
 ;;;; Planning timestamps
 
 (ert-deftest org-kanban-modern-test-format-timestamp ()
@@ -426,6 +433,31 @@ against regressing the defaults to non-ASCII."
     (dolist (ch (string-to-list glyph))
       ;; Each char must be ASCII (< 128) so it lives in the fixed-pitch font.
       (should (< ch 128)))))
+
+(ert-deftest org-kanban-modern-test-header-chip-portable-defaults ()
+  "Header filter chips default to ASCII-only labels."
+  (with-temp-buffer
+    (setq org-kanban-modern--tag-filter '("work")
+          org-kanban-modern--tag-exclude '("home")
+          org-kanban-modern--priority-filter ?A
+          org-kanban-modern--done-window 7)
+    (let ((header (substring-no-properties (org-kanban-modern--header-line))))
+      (should (string-match-p (regexp-quote "+#work x") header))
+      (should (string-match-p (regexp-quote "-#home x") header))
+      (should (string-match-p (regexp-quote "[#A] x") header))
+      (should (string-match-p (regexp-quote "done <=7d x") header))
+      (dolist (ch (string-to-list header))
+        (should (< ch 128))))))
+
+(ert-deftest org-kanban-modern-test-header-chip-custom-glyphs ()
+  "Header filter chips honor custom glyph variables."
+  (with-temp-buffer
+    (let ((org-kanban-modern-header-remove-glyph "[rm]")
+          (org-kanban-modern-header-done-window-prefix "within ")
+          (org-kanban-modern--done-window 3))
+      (let ((header (substring-no-properties (org-kanban-modern--header-line))))
+        (should (string-match-p (regexp-quote "done within 3d [rm]")
+                                header))))))
 
 (ert-deftest org-kanban-modern-test-strip-weekday ()
   "`--strip-weekday' drops the day name but keeps time, repeater, warning."

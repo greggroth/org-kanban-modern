@@ -13,8 +13,8 @@ configurable set of Org files.  The board is inspired by the visual polish of
 
 - *Columns from your workflow.*  Defaults to the keywords in
   ~org-todo-keywords~; fully configurable.
-- *Live data.*  Cards are collected from ~org-kanban-modern-files~ (defaults to
-  ~org-agenda-files~).
+- *Live data.*  Cards are collected from files or directories in
+  ~org-kanban-modern-files~ (defaults to ~org-agenda-files~).
 - *Click to select.*  Click a card to select it; the selection is shown with a
   distinct highlight.
 - *Keyboard to move.*  Move the selected card between columns; the change is
@@ -183,7 +183,8 @@ another window instead of the current one.
 
 See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
 
-- ~org-kanban-modern-files~ — files to scan (default ~org-agenda-files~).
+- ~org-kanban-modern-files~ — files or directories to scan (default
+  ~org-agenda-files~).
 - ~org-kanban-modern-columns~ — column keywords (default from
   ~org-todo-keywords~).
 - ~org-kanban-modern-sort~ — order of cards within each column.  ~priority~
@@ -205,7 +206,7 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
   this many days (default 7; ~nil~ shows all).  Done cards with no =CLOSED=
   timestamp are always shown, and active (non-done) cards are always shown
   regardless of this setting.  See [[*Org configuration][Org configuration]] for how to record the
-  =CLOSED= timestamp.  Adjust live with =t d=, or click the =done ≤Nd ✕=
+  =CLOSED= timestamp.  Adjust live with =t d=, or click the =done <=Nd x=
   header chip to show all done cards.
 - ~org-kanban-modern-priority-style~ — how a card reflects its Org priority
   (default ~cookie~).  Colors come from Org's own ~org-priority-faces~ (with
@@ -222,6 +223,12 @@ See =M-x customize-group RET org-kanban-modern RET=.  Key variables:
   inverse, excluded tags keep their strike-through), and a fixed-pitch family
   is forced so a per-tag face cannot break the card grid.  Set to ~nil~ to use
   the package faces only.
+- ~org-kanban-modern-header-remove-glyph~ /
+  ~org-kanban-modern-header-done-window-prefix~ — text used in header filter
+  chips for the remove marker (default ="x"=) and done-window comparison
+  prefix (default ="<="=).  These default to ASCII for portable fixed-pitch
+  rendering; set them to Unicode values such as ="✕"= / ="≤"= if your font
+  supports them with matching metrics.
 - ~org-kanban-modern-scheduled-glyph~ / ~org-kanban-modern-deadline-glyph~ —
   prefixes shown before the scheduled (default ="S "=) and deadline (default
   ="D "=) timestamps.  These default to ASCII labels so their width is

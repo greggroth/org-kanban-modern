@@ -34,8 +34,8 @@
 ;; Cards are selected by clicking and moved between columns with the keyboard;
 ;; moving a card writes the new TODO keyword back to the source file via
 ;; `org-todo'.  Tags are shown on cards as clickable chips and can be used to
-;; filter the board (elfeed-style, combining with AND).  Cards can also be
-;; filtered by priority.
+;; filter the board elfeed-style: included tags combine with AND, and excluded
+;; tags hide matching cards.  Cards can also be filtered by priority.
 ;;
 ;; Open the board with `M-x org-kanban-modern'.
 
@@ -59,7 +59,8 @@ When nil, the board uses `org-agenda-files'.  The value may be any
 form accepted as an element of `org-agenda-files' resolution: file
 names or directories."
   :type '(choice (const :tag "Use `org-agenda-files'" nil)
-                 (repeat file))
+                 (repeat (choice (file :tag "File")
+                                 (directory :tag "Directory"))))
   :group 'org-kanban-modern)
 
 (defcustom org-kanban-modern-columns nil
@@ -144,6 +145,22 @@ excluded tags keep their strike-through.  A fixed-pitch family is
 forced first so per-tag faces cannot break the card grid.  When
 nil, chips use the package faces only, exactly as before."
   :type 'boolean
+  :group 'org-kanban-modern)
+
+(defcustom org-kanban-modern-header-remove-glyph "x"
+  "Marker shown on header filter chips to indicate click-to-remove.
+Defaults to ASCII for portable fixed-pitch rendering.  Set this to a
+Unicode marker such as \"✕\" if your fixed-pitch font supports it with
+matching metrics."
+  :type 'string
+  :group 'org-kanban-modern)
+
+(defcustom org-kanban-modern-header-done-window-prefix "<="
+  "Text shown before the active done-card day window in the header.
+Defaults to ASCII for portable fixed-pitch rendering.  Set this to a
+Unicode comparison marker such as \"≤\" if your fixed-pitch font supports
+it with matching metrics."
+  :type 'string
   :group 'org-kanban-modern)
 
 (defcustom org-kanban-modern-scheduled-glyph "S "
@@ -1311,7 +1328,8 @@ Re-collects the board so the new window takes effect."
   "Compute the header-line string showing active filter chips."
   (let ((chips '()))
     (dolist (tag (reverse org-kanban-modern--tag-filter))
-      (push (propertize (format " +#%s ✕ " tag)
+      (push (propertize (format " +#%s %s "
+                                tag org-kanban-modern-header-remove-glyph)
                         'face (org-kanban-modern--chip-face
                                tag 'org-kanban-modern-filter-chip)
                         'mouse-face 'highlight
@@ -1320,7 +1338,8 @@ Re-collects the board so the new window takes effect."
                         'help-echo "mouse-1: remove this include filter")
             chips))
     (dolist (tag (reverse org-kanban-modern--tag-exclude))
-      (push (propertize (format " -#%s ✕ " tag)
+      (push (propertize (format " -#%s %s "
+                                tag org-kanban-modern-header-remove-glyph)
                         'face (org-kanban-modern--chip-face
                                tag 'org-kanban-modern-filter-chip-exclude)
                         'mouse-face 'highlight
@@ -1329,7 +1348,9 @@ Re-collects the board so the new window takes effect."
                         'help-echo "mouse-1: remove this exclude filter")
             chips))
     (when org-kanban-modern--priority-filter
-      (push (propertize (format " [#%c] ✕ " org-kanban-modern--priority-filter)
+      (push (propertize (format " [#%c] %s "
+                                org-kanban-modern--priority-filter
+                                org-kanban-modern-header-remove-glyph)
                         'face 'org-kanban-modern-filter-chip
                         'mouse-face 'highlight
                         'keymap (org-kanban-modern--chip-keymap
@@ -1337,7 +1358,10 @@ Re-collects the board so the new window takes effect."
                         'help-echo "mouse-1: clear the priority filter")
             chips))
     (when org-kanban-modern--done-window
-      (push (propertize (format " done ≤%dd ✕ " org-kanban-modern--done-window)
+      (push (propertize (format " done %s%dd %s "
+                                org-kanban-modern-header-done-window-prefix
+                                org-kanban-modern--done-window
+                                org-kanban-modern-header-remove-glyph)
                         'face 'org-kanban-modern-filter-chip
                         'mouse-face 'highlight
                         'keymap (org-kanban-modern--chip-keymap
