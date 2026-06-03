@@ -215,18 +215,51 @@
       ;; base stays last so state decoration still applies.
       (should (eq (nth 2 result) 'org-kanban-modern-tag-active)))))
 
-(ert-deftest org-kanban-modern-test-filter-priority ()
+(ert-deftest org-kanban-modern-test-filter-priority-explicit ()
   (with-temp-buffer
     (let ((cards (list (org-kanban-modern-test--card "a" "TODO" nil ?A)
                        (org-kanban-modern-test--card "b" "TODO" nil ?B)
                        (org-kanban-modern-test--card "c" "TODO" nil nil))))
       (setq org-kanban-modern--tag-filter nil
+            org-kanban-modern--tag-exclude nil
             org-kanban-modern--priority-filter ?A)
       (should (equal (mapcar #'org-kanban-modern-card-title
                              (org-kanban-modern--filtered cards))
                      '("a")))
       (setq org-kanban-modern--priority-filter nil)
       (should (= (length (org-kanban-modern--filtered cards)) 3)))))
+
+(ert-deftest org-kanban-modern-test-filter-priority-includes-default ()
+  "`org-default-priority' cards match the same priority filter as explicit cards."
+  (with-temp-buffer
+    (let ((cards (list (org-kanban-modern-test--card "a" "TODO" nil ?A)
+                       (org-kanban-modern-test--card "b" "TODO" nil ?B)
+                       (org-kanban-modern-test--card "none" "TODO" nil nil)))
+          (org-default-priority ?B))
+      (setq org-kanban-modern--tag-filter nil
+            org-kanban-modern--tag-exclude nil
+            org-kanban-modern--priority-filter ?B)
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--filtered cards))
+                     '("b" "none"))))))
+
+(ert-deftest org-kanban-modern-test-filter-priority-custom-default ()
+  "Priority filtering respects custom `org-default-priority' values."
+  (with-temp-buffer
+    (let ((cards (list (org-kanban-modern-test--card "b" "TODO" nil ?B)
+                       (org-kanban-modern-test--card "none" "TODO" nil nil)
+                       (org-kanban-modern-test--card "c" "TODO" nil ?C)))
+          (org-default-priority ?C))
+      (setq org-kanban-modern--tag-filter nil
+            org-kanban-modern--tag-exclude nil
+            org-kanban-modern--priority-filter ?B)
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--filtered cards))
+                     '("b")))
+      (setq org-kanban-modern--priority-filter ?C)
+      (should (equal (mapcar #'org-kanban-modern-card-title
+                             (org-kanban-modern--filtered cards))
+                     '("none" "c"))))))
 
 (ert-deftest org-kanban-modern-test-cards-for-column ()
   (let ((cards (list (org-kanban-modern-test--card "a" "TODO" nil nil)

@@ -30,8 +30,9 @@ configurable set of Org files.  The board is inspired by the visual polish of
   for excludes — click one to remove it.  Tag chips honor Org's
   ~org-tag-faces~, so per-tag colors show through on the board; disable with
   ~org-kanban-modern-use-tag-faces~.
-- *Priority filtering.*  Filter by Org priority, with a clickable priority
-  cookie on each card.
+- *Priority filtering.*  Filter by effective Org priority: unprioritized cards
+  match ~org-default-priority~ (normally =[#B]=), just like sorting and
+  =org-agenda=.
 - *Priority coloring.*  The =[#X]= priority cookie on each card is colored
   using your configured ~org-priority-faces~ — the same source =org-agenda=
   uses (see ~org-kanban-modern-priority-style~).
@@ -94,15 +95,15 @@ This package is deliberately a *view* over Org: it reuses the standard
 own.  No special setup is required to get started, but the board honors the
 settings below, so customizing them in Org is reflected here too.
 
-| Org / org-agenda setting              | What it drives on the board                       | Required?                  |
-|---------------------------------------+---------------------------------------------------+----------------------------|
-| ~org-todo-keywords~                     | Default columns                                   | No (used via ~columns~)      |
-| ~org-agenda-files~                      | Default files scanned for cards                   | No (used via ~files~)        |
-| ~org-log-done~                          | Writes the =CLOSED= timestamp the done filter reads | For the recently-done view |
-| ~org-priority-faces~ / ~org-priority~     | Priority cookie colors                            | No                         |
-| ~org-default-priority~                  | Where unprioritized cards sort (normally =[#B]=)    | No                         |
-| ~org-tag-faces~                         | Tag chip colors                                   | No                         |
-| ~org-scheduled~ / ~org-upcoming-deadline~ | =SCHEDULED= / =DEADLINE= line colors                  | No                         |
+| Org / org-agenda setting              | What it drives on the board                               | Required?                  |
+|---------------------------------------+-----------------------------------------------------------+----------------------------|
+| ~org-todo-keywords~                     | Default columns                                           | No (used via ~columns~)      |
+| ~org-agenda-files~                      | Default files scanned for cards                           | No (used via ~files~)        |
+| ~org-log-done~                          | Writes the =CLOSED= timestamp the done filter reads         | For the recently-done view |
+| ~org-priority-faces~ / ~org-priority~     | Priority cookie colors                                    | No                         |
+| ~org-default-priority~                  | Effective priority for unprioritized cards in sort/filter | No                         |
+| ~org-tag-faces~                         | Tag chip colors                                           | No                         |
+| ~org-scheduled~ / ~org-upcoming-deadline~ | =SCHEDULED= / =DEADLINE= line colors                          | No                         |
 
 Moving a card runs ~org-todo~ on the source heading, so its TODO-state logging
 and note prompts (e.g. ~org-log-into-drawer~, per-keyword logging) are honored
@@ -130,7 +131,7 @@ shows up here:
 - *Priority colors* reuse ~org-priority-faces~ (falling back to the
   ~org-priority~ face), the same source =org-agenda= uses.
   ~org-default-priority~ (normally =[#B]=) controls where unprioritized cards
-  land in the default priority sort.
+  land in the default priority sort and which priority filter they match.
 - *Tag colors* reuse ~org-tag-faces~ on every tag chip; turn this off with
   ~org-kanban-modern-use-tag-faces~.
 - *Planning colors* reuse Org's planning faces: ~org-kanban-modern-scheduled~
@@ -164,13 +165,13 @@ repeaters, inline markup, and recently-closed cards.
 | =s=                    | Set the selected card's TODO state          |
 | =,=                    | Set the selected card's priority            |
 | =:=                    | Set the selected card's tags                |
-| c                    | Run =org-capture=                           |
+| c                    | Run =org-capture=                             |
 | =RET= / =o=              | Visit card's heading in its Org file        |
 | =double-mouse-1=       | Visit card's heading in its Org file        |
 | =t t= / =t +=            | Toggle a tag in the *include* filter (prompt) |
 | =t -=                  | Toggle a tag in the *exclude* filter (prompt) |
 | =t r=                  | Remove a tag from the filter (prompt)       |
-| =t p=                  | Filter by priority (prompt)                 |
+| =t p=                  | Filter by effective priority (prompt)       |
 | =t c=                  | Clear all filters                           |
 | =t d=                  | Set the done-card date window (prompt)      |
 | =g=                    | Refresh                                     |

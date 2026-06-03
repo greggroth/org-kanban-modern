@@ -476,7 +476,9 @@ days ago are skipped."
 A card is shown only if it carries none of these tags.")
 
 (defvar-local org-kanban-modern--priority-filter nil
-  "Priority character cards must match, or nil for no priority filter.")
+  "Effective priority character cards must match, or nil for no priority filter.
+Cards with no explicit priority use `org-default-priority', matching
+the default priority sort and `org-agenda'.")
 
 ;;;; Filtering
 
@@ -501,6 +503,14 @@ no tag is both included and excluded always holds."
     ('include (push tag org-kanban-modern--tag-filter))
     ('exclude (push tag org-kanban-modern--tag-exclude))))
 
+(defun org-kanban-modern--priority-rank (card)
+  "Return a sortable rank for CARD's priority; lower sorts first.
+Priorities rank by their character code (so =?A= precedes =?B=).
+Mirroring `org-agenda', a card with no explicit priority cookie is
+treated as having `org-default-priority', so it sorts alongside cards
+of that priority rather than last."
+  (or (org-kanban-modern-card-priority card) org-default-priority))
+
 (defun org-kanban-modern--filtered (cards)
   "Return the members of CARDS passing the active filters."
   (cl-remove-if-not
@@ -514,16 +524,8 @@ no tag is both included and excluded always holds."
                                        :test #'string=)))
             (or (null org-kanban-modern--priority-filter)
                 (eql org-kanban-modern--priority-filter
-                     (org-kanban-modern-card-priority card))))))
+                     (org-kanban-modern--priority-rank card))))))
    cards))
-
-(defun org-kanban-modern--priority-rank (card)
-  "Return a sortable rank for CARD's priority; lower sorts first.
-Priorities rank by their character code (so =?A= precedes =?B=).
-Mirroring `org-agenda', a card with no explicit priority cookie is
-treated as having `org-default-priority', so it sorts alongside cards
-of that priority rather than last."
-  (or (org-kanban-modern-card-priority card) org-default-priority))
 
 (defun org-kanban-modern--sort-cards (cards)
   "Return CARDS ordered per `org-kanban-modern-sort'.
