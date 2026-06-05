@@ -159,6 +159,7 @@ repeaters, inline markup, and recently-closed cards.
 | =mouse-1= (header tag) | Remove that tag from the filter             |
 | =n= / =p=                | Select next / previous card in column       |
 | =f= / =b=                | Move selection to next / previous column    |
+| =F=                    | Toggle follow-mode source preview           |
 | =TAB= / =S-TAB=          | Move selection forward / backward column    |
 | =M-<right>= / =>=        | Move card to next column                    |
 | =M-<left>=  / =<=        | Move card to previous column                |
@@ -182,6 +183,10 @@ repeaters, inline markup, and recently-closed cards.
 
 With a prefix argument (=C-u RET= / =C-u o=), the card's heading opens in
 another window instead of the current one.
+
+Follow-mode (=F=) mirrors Org Agenda: when enabled, changing the selected card
+automatically previews its source Org heading in another window while keeping
+focus on the kanban board.
 
 Board edits use Org's normal commands and leave the source Org buffer unsaved,
 matching Org Agenda.  Press =s= (=org-save-all-org-buffers=) when ready, just as

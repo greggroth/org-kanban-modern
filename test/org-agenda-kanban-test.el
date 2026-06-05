@@ -823,6 +823,43 @@ The selection (stable ID) survives the edit."
   (should (eq (lookup-key org-agenda-kanban-mode-map "-")
               #'org-agenda-kanban-priority-down)))
 
+(ert-deftest org-agenda-kanban-test-follow-key-bound ()
+  "`F' toggles kanban follow-mode."
+  (should (eq (lookup-key org-agenda-kanban-mode-map "F")
+              #'org-agenda-kanban-follow-mode)))
+
+(ert-deftest org-agenda-kanban-test-follow-mode-toggle ()
+  "`org-agenda-kanban-follow-mode' toggles buffer-local follow state."
+  (with-temp-buffer
+    (let ((calls 0))
+      (cl-letf (((symbol-function 'org-agenda-kanban--follow-selection)
+                 (lambda () (setq calls (1+ calls)))))
+        (should-not org-agenda-kanban--follow-mode)
+        (org-agenda-kanban-follow-mode)
+        (should org-agenda-kanban--follow-mode)
+        (should (= calls 1))
+        (org-agenda-kanban-follow-mode -1)
+        (should-not org-agenda-kanban--follow-mode)
+        (should (= calls 2))))))
+
+(ert-deftest org-agenda-kanban-test-follow-mode-select-previews-card ()
+  "Selecting a card previews it when follow-mode is active."
+  (let ((card (org-agenda-kanban-card-create
+               :id "card" :title "Task" :todo "TODO")))
+    (with-temp-buffer
+      (let ((org-agenda-kanban-column-width 12)
+            (org-agenda-kanban-column-gap 0)
+            (org-agenda-kanban-columns '("TODO"))
+            (org-agenda-kanban--cards (list card))
+            (org-agenda-kanban--visible (list card))
+            (org-agenda-kanban--selected-id "card")
+            (org-agenda-kanban--follow-mode t)
+            (calls 0))
+        (cl-letf (((symbol-function 'org-agenda-kanban--follow-selection)
+                   (lambda () (setq calls (1+ calls)))))
+          (org-agenda-kanban--select "card")
+          (should (= calls 1)))))))
+
 (ert-deftest org-agenda-kanban-test-agenda-aligned-keys-bound ()
   "Top-level keys mirror Org Agenda: `t' sets TODO, `s' saves, etc."
   (should (eq (lookup-key org-agenda-kanban-mode-map "t")

@@ -44,6 +44,7 @@
 (require 'cl-lib)
 (require 'subr-x)
 (require 'org)
+(require 'org-agenda)
 (require 'org-element)
 
 ;;;; Customization
@@ -523,6 +524,12 @@ days ago are skipped."
 (defvar-local org-agenda-kanban--selected-id nil
   "ID of the currently selected card, or nil.")
 
+(defvar-local org-agenda-kanban--follow-mode nil
+  "Non-nil means automatically preview the selected card's source heading.")
+
+(defvar-local org-agenda-kanban--pre-follow-window-conf nil
+  "Window configuration saved before enabling kanban follow-mode.")
+
 (defvar-local org-agenda-kanban--tag-filter nil
   "List of tags a card must all carry to be shown (the include filter).")
 
@@ -970,7 +977,8 @@ A blank separator line is inserted after each card."
                              blocks gap))
           (insert "\n")))))
     (set-buffer-modified-p nil)
-    (org-agenda-kanban--goto-selected)))
+    (org-agenda-kanban--goto-selected)
+    (org-agenda-kanban--follow-selection)))
 
 (defun org-agenda-kanban--goto-selected ()
   "Move point to the start of the selected card, if it is visible."
@@ -1016,6 +1024,40 @@ first visible card is selected, or nil when nothing is visible."
   "Return the column keyword whose visible list contains ID, or nil."
   (cl-loop for (col . ids) in org-agenda-kanban--layout
            when (member id ids) return col))
+
+(defun org-agenda-kanban--show-heading (loc keep-board-focus)
+  "Show the source heading at LOC.
+LOC is a cons of (BUFFER . POSITION).  When KEEP-BOARD-FOCUS is non-nil,
+display the source buffer in another window and keep focus on the board."
+  (let ((buf (car loc))
+        (pos (cdr loc)))
+    (cl-labels ((show ()
+                  (widen)
+                  (goto-char pos)
+                  (when (derived-mode-p 'org-mode)
+                    (org-fold-show-context 'agenda)
+                    (recenter (/ (window-height) 2))
+                    (org-back-to-heading t)
+                    (let ((case-fold-search nil))
+                      (when (re-search-forward org-complex-heading-regexp nil t)
+                        (goto-char (match-beginning 4)))))
+                  (run-hooks 'org-agenda-after-show-hook)))
+      (if keep-board-focus
+          (save-selected-window
+            (switch-to-buffer-other-window buf)
+            (show))
+        (pop-to-buffer-same-window buf)
+        (show)))))
+
+(defun org-agenda-kanban--follow-selection ()
+  "Preview the selected card's source heading when follow-mode is active."
+  (when org-agenda-kanban--follow-mode
+    (when-let ((card (org-agenda-kanban--selected-card)))
+      (let ((loc (org-agenda-kanban--locate card)))
+        (if loc
+            (org-agenda-kanban--show-heading loc t)
+          (message "Cannot locate heading for %S; refresh the board"
+                   (org-agenda-kanban-card-title card)))))))
 
 ;;;; Navigation commands
 
@@ -1079,6 +1121,27 @@ first visible card is selected, or nil when nothing is visible."
   "Select a card in the next non-empty column to the left."
   (interactive)
   (org-agenda-kanban--horizontal -1))
+
+(defun org-agenda-kanban-follow-mode (&optional arg)
+  "Toggle automatic source-heading preview for the selected card.
+With prefix ARG, enable follow-mode when ARG is positive, otherwise
+disable it.  When enabled, changing the board selection shows the selected
+card's Org heading in another window while keeping focus on the board."
+  (interactive "P")
+  (let ((enable (if (null arg)
+                    (not org-agenda-kanban--follow-mode)
+                  (> (prefix-numeric-value arg) 0))))
+    (when (and enable (not org-agenda-kanban--follow-mode))
+      (setq org-agenda-kanban--pre-follow-window-conf
+            (current-window-configuration)))
+    (setq org-agenda-kanban--follow-mode enable))
+  (unless org-agenda-kanban--follow-mode
+    (when org-agenda-kanban--pre-follow-window-conf
+      (set-window-configuration org-agenda-kanban--pre-follow-window-conf)))
+  (force-mode-line-update)
+  (message "Kanban follow-mode %s"
+           (if org-agenda-kanban--follow-mode "enabled" "disabled"))
+  (org-agenda-kanban--follow-selection))
 
 (defun org-agenda-kanban--mouse-click (event)
   "Handle a mouse-1 click on a card or one of its tags.
@@ -1273,11 +1336,6 @@ Save the source buffer explicitly when ready."
 
 ;;;; Visiting the source heading
 
-(defun org-agenda-kanban--reveal ()
-  "Unfold the Org context around point so the heading is visible."
-  (cond ((fboundp 'org-fold-show-context) (org-fold-show-context 'org-goto))
-        ((fboundp 'org-show-context) (org-show-context 'org-goto))))
-
 (defun org-agenda-kanban-visit-card (&optional other-window)
   "Visit the selected card's heading in its source Org file.
 With a prefix argument, or when OTHER-WINDOW is non-nil, show the
@@ -1289,20 +1347,7 @@ file in another window and keep focus on the board."
     (unless loc
       (user-error "Cannot locate heading for %S; refresh the board"
                   (org-agenda-kanban-card-title card)))
-    (let ((buf (car loc))
-          (pos (cdr loc)))
-      (if other-window
-          (save-selected-window
-            (pop-to-buffer buf)
-            (widen)
-            (goto-char pos)
-            (org-agenda-kanban--reveal)
-            (recenter))
-        (pop-to-buffer-same-window buf)
-        (widen)
-        (goto-char pos)
-        (org-agenda-kanban--reveal)
-        (recenter)))))
+    (org-agenda-kanban--show-heading loc other-window)))
 
 (defun org-agenda-kanban--mouse-visit (event)
   "Select the card under EVENT and visit its source heading.
@@ -1457,6 +1502,7 @@ Re-collects the board so the new window takes effect."
     (define-key map "n" #'org-agenda-kanban-next-card)
     (define-key map "p" #'org-agenda-kanban-previous-card)
     (define-key map "f" #'org-agenda-kanban-forward-column)
+    (define-key map "F" #'org-agenda-kanban-follow-mode)
     (define-key map "b" #'org-agenda-kanban-backward-column)
     (define-key map (kbd "TAB") #'org-agenda-kanban-forward-column)
     (define-key map (kbd "<backtab>") #'org-agenda-kanban-backward-column)
@@ -1498,6 +1544,8 @@ Re-collects the board so the new window takes effect."
   (setq truncate-lines t)
   (setq-local cursor-type nil)
   (setq-local line-spacing org-agenda-kanban-line-spacing)
+  (setq-local mode-line-process
+              '(:eval (when org-agenda-kanban--follow-mode " Follow")))
   (unless (local-variable-p 'org-agenda-kanban--done-window)
     (setq-local org-agenda-kanban--done-window
                 org-agenda-kanban-done-within-days))
