@@ -860,6 +860,85 @@ The selection (stable ID) survives the edit."
           (org-agenda-kanban--select "card")
           (should (= calls 1)))))))
 
+(ert-deftest org-agenda-kanban-test-follow-highlights-source-row ()
+  "Follow-mode marks the selected card's heading line in the source buffer."
+  (org-agenda-kanban--follow-unhighlight)
+  (unwind-protect
+      (with-temp-buffer
+        (insert "* TODO Task\n  body\n* TODO Other\n")
+        (org-mode)
+        (let ((org-agenda-kanban--follow-mode t)
+              (src (current-buffer)))
+          (cl-letf (((symbol-function 'recenter) #'ignore)
+                    ((symbol-function 'switch-to-buffer-other-window)
+                     (lambda (buf &rest _) (set-buffer buf)))
+                    ((symbol-function 'pop-to-buffer-same-window)
+                     (lambda (buf &rest _) (set-buffer buf))))
+            (org-agenda-kanban--show-heading (cons src (point-min)) nil))
+          (should (overlayp org-agenda-kanban--follow-overlay))
+          (should (eq (overlay-buffer org-agenda-kanban--follow-overlay) src))
+          (should (eq (overlay-get org-agenda-kanban--follow-overlay 'face)
+                      'highlight))
+          ;; The overlay spans the first heading line, not the body or the
+          ;; second heading.
+          (goto-char (overlay-start org-agenda-kanban--follow-overlay))
+          (should (looking-at-p "\\* TODO Task"))
+          (should (= (overlay-end org-agenda-kanban--follow-overlay)
+                     (line-end-position)))))
+    (org-agenda-kanban--follow-unhighlight)))
+
+(ert-deftest org-agenda-kanban-test-follow-no-highlight-when-disabled ()
+  "Without follow-mode, showing a heading leaves no source highlight."
+  (org-agenda-kanban--follow-unhighlight)
+  (unwind-protect
+      (with-temp-buffer
+        (insert "* TODO Task\n")
+        (org-mode)
+        (let ((org-agenda-kanban--follow-mode nil)
+              (src (current-buffer)))
+          (cl-letf (((symbol-function 'recenter) #'ignore)
+                    ((symbol-function 'pop-to-buffer-same-window)
+                     (lambda (buf &rest _) (set-buffer buf))))
+            (org-agenda-kanban--show-heading (cons src (point-min)) nil))
+          (should-not (and (overlayp org-agenda-kanban--follow-overlay)
+                           (overlay-buffer org-agenda-kanban--follow-overlay)))))
+    (org-agenda-kanban--follow-unhighlight)))
+
+(ert-deftest org-agenda-kanban-test-follow-mode-disable-clears-highlight ()
+  "Disabling follow-mode removes the source-buffer highlight."
+  (with-temp-buffer
+    (setq org-agenda-kanban--follow-overlay
+          (make-overlay (point-min) (point-max)))
+    (let ((org-agenda-kanban--follow-mode t))
+      (cl-letf (((symbol-function 'org-agenda-kanban--follow-selection) #'ignore))
+        (org-agenda-kanban-follow-mode -1)))
+    (should-not (overlay-buffer org-agenda-kanban--follow-overlay))))
+
+(ert-deftest org-agenda-kanban-test-follow-selection-clears-when-empty ()
+  "Follow-mode drops the highlight when nothing is selected."
+  (with-temp-buffer
+    (setq org-agenda-kanban--follow-overlay
+          (make-overlay (point-min) (point-max)))
+    (let ((org-agenda-kanban--follow-mode t)
+          (org-agenda-kanban--selected-id nil)
+          (org-agenda-kanban--cards nil))
+      (org-agenda-kanban--follow-selection))
+    (should-not (overlay-buffer org-agenda-kanban--follow-overlay))))
+
+(ert-deftest org-agenda-kanban-test-quit-key-bound ()
+  "`q' buries the board via the highlight-clearing quit command."
+  (should (eq (lookup-key org-agenda-kanban-mode-map "q")
+              #'org-agenda-kanban-quit)))
+
+(ert-deftest org-agenda-kanban-test-quit-clears-highlight ()
+  "`org-agenda-kanban-quit' removes the follow highlight before burying."
+  (with-temp-buffer
+    (setq org-agenda-kanban--follow-overlay
+          (make-overlay (point-min) (point-max)))
+    (cl-letf (((symbol-function 'quit-window) #'ignore))
+      (org-agenda-kanban-quit))
+    (should-not (overlay-buffer org-agenda-kanban--follow-overlay))))
+
 (ert-deftest org-agenda-kanban-test-agenda-aligned-keys-bound ()
   "Top-level keys mirror Org Agenda: `t' sets TODO, `s' saves, etc."
   (should (eq (lookup-key org-agenda-kanban-mode-map "t")

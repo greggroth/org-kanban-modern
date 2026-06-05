@@ -186,7 +186,9 @@ another window instead of the current one.
 
 Follow-mode (=F=) mirrors Org Agenda: when enabled, changing the selected card
 automatically previews its source Org heading in another window while keeping
-focus on the kanban board.
+focus on the kanban board.  As in Org Agenda, the heading's line is highlighted
+in the source buffer so the matching outline item is easy to spot, and the
+highlight follows the selection as you navigate.
 
 Board edits use Org's normal commands and leave the source Org buffer unsaved,
 matching Org Agenda.  Press =s= (=org-save-all-org-buffers=) when ready, just as

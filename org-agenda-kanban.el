@@ -530,6 +530,12 @@ days ago are skipped."
 (defvar-local org-agenda-kanban--pre-follow-window-conf nil
   "Window configuration saved before enabling kanban follow-mode.")
 
+(defvar org-agenda-kanban--follow-overlay nil
+  "Overlay marking the selected card's source heading during follow-mode.
+Like Org Agenda's `org-hl', a single reusable overlay is moved onto the
+heading line of whichever board has focus, so the row is easy to spot in
+the source buffer.")
+
 (defvar-local org-agenda-kanban--tag-filter nil
   "List of tags a card must all carry to be shown (the include filter).")
 
@@ -1025,12 +1031,28 @@ first visible card is selected, or nil when nothing is visible."
   (cl-loop for (col . ids) in org-agenda-kanban--layout
            when (member id ids) return col))
 
+(defun org-agenda-kanban--follow-unhighlight ()
+  "Remove the follow-mode highlight from the source buffer, if any."
+  (when (overlayp org-agenda-kanban--follow-overlay)
+    (delete-overlay org-agenda-kanban--follow-overlay)))
+
+(defun org-agenda-kanban--follow-highlight (buffer beg end)
+  "Move the follow-mode highlight overlay onto BEG..END in BUFFER."
+  (unless (overlayp org-agenda-kanban--follow-overlay)
+    (setq org-agenda-kanban--follow-overlay (make-overlay 1 1))
+    (overlay-put org-agenda-kanban--follow-overlay 'face 'highlight)
+    (overlay-put org-agenda-kanban--follow-overlay 'org-agenda-kanban t))
+  (move-overlay org-agenda-kanban--follow-overlay beg end buffer))
+
 (defun org-agenda-kanban--show-heading (loc keep-board-focus)
   "Show the source heading at LOC.
 LOC is a cons of (BUFFER . POSITION).  When KEEP-BOARD-FOCUS is non-nil,
-display the source buffer in another window and keep focus on the board."
+display the source buffer in another window and keep focus on the board.
+While follow-mode is active the heading line is highlighted so the
+selected card's row is easy to spot in the source buffer."
   (let ((buf (car loc))
-        (pos (cdr loc)))
+        (pos (cdr loc))
+        (follow org-agenda-kanban--follow-mode))
     (cl-labels ((show ()
                   (widen)
                   (goto-char pos)
@@ -1041,6 +1063,11 @@ display the source buffer in another window and keep focus on the board."
                     (let ((case-fold-search nil))
                       (when (re-search-forward org-complex-heading-regexp nil t)
                         (goto-char (match-beginning 4)))))
+                  (when follow
+                    (org-agenda-kanban--follow-highlight
+                     (current-buffer)
+                     (line-beginning-position)
+                     (line-end-position)))
                   (run-hooks 'org-agenda-after-show-hook)))
       (if keep-board-focus
           (save-selected-window
@@ -1052,12 +1079,17 @@ display the source buffer in another window and keep focus on the board."
 (defun org-agenda-kanban--follow-selection ()
   "Preview the selected card's source heading when follow-mode is active."
   (when org-agenda-kanban--follow-mode
-    (when-let ((card (org-agenda-kanban--selected-card)))
-      (let ((loc (org-agenda-kanban--locate card)))
-        (if loc
-            (org-agenda-kanban--show-heading loc t)
-          (message "Cannot locate heading for %S; refresh the board"
-                   (org-agenda-kanban-card-title card)))))))
+    (if-let ((card (org-agenda-kanban--selected-card)))
+        (let ((loc (org-agenda-kanban--locate card)))
+          (if loc
+              (org-agenda-kanban--show-heading loc t)
+            (org-agenda-kanban--follow-unhighlight)
+            (message "Cannot locate heading for %S; refresh the board"
+                     (org-agenda-kanban-card-title card))))
+      ;; Follow-mode is on but nothing is selected (e.g. filters hid every
+      ;; card); drop the stale highlight so it does not point at a heading
+      ;; that no longer corresponds to a selection.
+      (org-agenda-kanban--follow-unhighlight))))
 
 ;;;; Navigation commands
 
@@ -1136,6 +1168,7 @@ card's Org heading in another window while keeping focus on the board."
             (current-window-configuration)))
     (setq org-agenda-kanban--follow-mode enable))
   (unless org-agenda-kanban--follow-mode
+    (org-agenda-kanban--follow-unhighlight)
     (when org-agenda-kanban--pre-follow-window-conf
       (set-window-configuration org-agenda-kanban--pre-follow-window-conf)))
   (force-mode-line-update)
@@ -1535,7 +1568,7 @@ Re-collects the board so the new window takes effect."
     (define-key map "\\" #'org-agenda-kanban-toggle-tag)
     (define-key map "g" #'org-agenda-kanban-refresh)
     (define-key map "r" #'org-agenda-kanban-refresh)
-    (define-key map "q" #'quit-window)
+    (define-key map "q" #'org-agenda-kanban-quit)
     map)
   "Keymap for `org-agenda-kanban-mode'.")
 
@@ -1551,7 +1584,16 @@ Re-collects the board so the new window takes effect."
                 org-agenda-kanban-done-within-days))
   (buffer-face-set 'fixed-pitch)
   (add-hook 'isearch-mode-end-hook #'org-agenda-kanban--isearch-select nil t)
+  (add-hook 'kill-buffer-hook #'org-agenda-kanban--follow-unhighlight nil t)
   (setq header-line-format '(:eval (org-agenda-kanban--header-line))))
+
+(defun org-agenda-kanban-quit ()
+  "Bury the kanban board, first clearing any follow-mode source highlight.
+`quit-window' only buries the board, so the highlight overlay would
+otherwise linger in the source buffer with no visible board driving it."
+  (interactive)
+  (org-agenda-kanban--follow-unhighlight)
+  (quit-window))
 
 (defun org-agenda-kanban-refresh ()
   "Re-collect cards from the source files and redraw the board."
